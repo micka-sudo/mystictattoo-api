@@ -3,32 +3,46 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 
-const uploadRoute = require('./routes/upload');
-const authRoute = require('./routes/auth');
-const mediaRoute = require('./routes/media');
+const routes = require('./routes');
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
-app.use(cors());
+// CORS sécurisé
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://mystictattoo-chat.vercel.app'
+];
+
+app.use(cors({
+    origin: allowedOrigins,
+    credentials: true
+}));
+
 app.use(express.json());
 
-// Dossier de fichiers uploadés
+// Dossier pour les fichiers uploadés
 const uploadsPath = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsPath)) {
     fs.mkdirSync(uploadsPath, { recursive: true });
 }
 app.use('/uploads', express.static(uploadsPath));
 
-// Routes
-app.use('/api/upload', uploadRoute);
-app.use('/api/login', authRoute);
-app.use('/api/media', mediaRoute);
+// Routes API
+app.use('/api', routes);
 
+// Route test
 app.get('/', (req, res) => {
     res.send('🚀 Backend Mystic Tattoo en ligne');
 });
 
+// Middleware gestion erreurs
+app.use((err, req, res, next) => {
+    console.error('❌ Erreur serveur :', err);
+    res.status(500).json({ error: 'Erreur serveur interne' });
+});
+
+// Lancement serveur
 app.listen(PORT, () => {
-    console.log(`✅ Serveur backend démarré sur http://localhost:${PORT}`);
+    console.log(`✅ Backend démarré sur http://localhost:${PORT}`);
 });

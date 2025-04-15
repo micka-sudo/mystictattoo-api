@@ -1,64 +1,40 @@
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
-const sharp = require('sharp');
-const heicConvert = require('heic-convert');
+const verifyToken = require('../middlewares/auth');
 
 const router = express.Router();
 
-// Stockage temporaire en RAM
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads');
+    },
+    filename: function (req, file, cb) {
+        const unique = Date.now() + '-' + file.originalname;
+        cb(null, unique);
+    },
+});
 
-router.post('/', upload.single('file'), async (req, res) => {
-    try {
-        const { category, tags } = req.body;
-        const file = req.file;
+const upload = multer({ storage });
 
-        if (!file || !category) {
-            return res.status(400).json({ error: 'Fichier et catégorie requis.' });
-        }
+// ✅ Cette route nécessite un token valide
+router.post('/', verifyToken, upload.single('file'), (req, res) => {
+    const { category, tags } = req.body;
+    const file = req.file;
 
-        const ext = path.extname(file.originalname).toLowerCase();
-        const fileNameBase = path.basename(file.originalname, ext).replace(/\s+/g, '-');
-        const categoryDir = path.join(__dirname, '..', 'uploads', category);
+    if (!file) return res.status(400).json({ error: 'Fichier manquant' });
 
-        // Crée le dossier si besoin
-        if (!fs.existsSync(categoryDir)) {
-            fs.mkdirSync(categoryDir, { recursive: true });
-        }
+    const fileType = file.mimetype.startsWith('image') ? 'image' : 'video';
 
-        let finalFileName = '';
-        let finalPath = '';
+    const mediaItem = {
+        file: file.filename,
+        url: '/uploads/' + file.filename,
+        type: fileType,
+        category,
+        tags: tags ? tags.split(',').map(t => t.trim()) : []
+    };
 
-        if (ext === '.heic') {
-            // Convert HEIC to JPEG
-            const jpegPath = path.join(categoryDir, `${fileNameBase}.jpg`);
-            const outputBuffer = await heicConvert({
-                buffer: file.buffer,
-                format: 'JPEG',
-                quality: 1,
-            });
-            fs.writeFileSync(jpegPath, outputBuffer);
-            finalFileName = `${fileNameBase}.jpg`;
-            finalPath = jpegPath;
-        } else {
-            // Sauvegarde directe
-            const targetExt = ext.match(/\.jpe?g|\.png|\.webp|\.mp4|\.webm/) ? ext : '.jpg';
-            const safeName = `${fileNameBase}${targetExt}`;
-            const filePath = path.join(categoryDir, safeName);
-            fs.writeFileSync(filePath, file.buffer);
-            finalFileName = safeName;
-            finalPath = filePath;
-        }
-
-        console.log(`✅ Fichier enregistré : ${finalPath}`);
-        res.status(200).json({ message: 'Fichier enregistré', filename: finalFileName });
-    } catch (error) {
-        console.error('❌ Erreur upload :', error.message);
-        res.status(500).json({ error: 'Erreur serveur' });
-    }
+    res.status(201).json(mediaItem);
 });
 
 module.exports = router;
