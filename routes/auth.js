@@ -1,10 +1,11 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 const router = express.Router();
-const SECRET_KEY = 'tonSecretUltraFort'; // 🔐 à sécuriser dans un .env
 
-const ADMIN_PASSWORD = 'admin123'; // 🛠️ à sécuriser aussi (exemple temporaire)
+const SECRET_KEY = process.env.SECRET_KEY;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 // ✅ Route POST /api/login
 router.post('/', (req, res) => {

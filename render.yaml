@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: mystictattoo-api
+    env: node
+    branch: main
+    region: frankfurt  # ou oregon / ohio / singapore selon ta préférence
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: SECRET_KEY
+        value: tonSuperTokenUltraSecret
+      - key: ADMIN_PASSWORD
+        value: admin123
+      - key: PORT
+        value: 4000
