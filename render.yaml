@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: mystictattoo-api
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        value: tonSecretUltraFort
+      - key: ADMIN_PASSWORD
+        value: admin123

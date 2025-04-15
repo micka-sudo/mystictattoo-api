@@ -1,9 +1,12 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
 const router = express.Router();
-const SECRET_KEY = process.env.JWT_SECRET;
+
+const SECRET_KEY = process.env.SECRET_KEY;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
 // ✅ Route POST /api/login
 router.post('/', (req, res) => {
     const { password } = req.body;
@@ -17,3 +20,4 @@ router.post('/', (req, res) => {
 });
 
 module.exports = router;
+
