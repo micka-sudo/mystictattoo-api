@@ -1,12 +1,14 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
+const sharp = require('sharp');
+const convert = require('heic-convert');
 const verifyToken = require('../middlewares/auth');
 
 const router = express.Router();
 const uploadsPath = path.join(__dirname, '..', 'uploads');
 
-// ✅ Fonction utilitaire : lecture des fichiers média dans un dossier
 const walkDir = (dir, baseCategory = '') => {
     const media = [];
 
@@ -37,12 +39,61 @@ const walkDir = (dir, baseCategory = '') => {
     }
 };
 
-// 🔓 GET /media : retourne les médias (optionnellement filtré par style)
+// 🔧 Multer : upload avec sous-dossier par catégorie
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const category = req.body.category || 'uncategorized';
+        const targetDir = path.join(uploadsPath, category);
+        fs.mkdirSync(targetDir, { recursive: true });
+        cb(null, targetDir);
+    },
+    filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname).toLowerCase();
+        const baseName = path.basename(file.originalname, ext).replace(/\s+/g, '-');
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, `${baseName}-${uniqueSuffix}${ext}`);
+    }
+});
+const upload = multer({ storage });
+
+// 🔁 Conversion vers JPEG si nécessaire
+const convertToJpeg = async (filePath) => {
+    const ext = path.extname(filePath).toLowerCase();
+    const convertible = ['.heic', '.webp', '.png', '.tiff', '.bmp', '.avif'];
+    if (!convertible.includes(ext)) return;
+
+    const outputPath = filePath.replace(ext, '.jpg');
+
+    try {
+        console.log(`🔧 Conversion avec sharp : ${path.basename(filePath)}`);
+        await sharp(filePath).rotate().jpeg({ quality: 90 }).toFile(outputPath);
+        fs.unlinkSync(filePath);
+        console.log(`✅ Converti avec sharp → ${outputPath}`);
+    } catch (errSharp) {
+        if (ext === '.heic') {
+            try {
+                const inputBuffer = fs.readFileSync(filePath);
+                const outputBuffer = await convert({
+                    buffer: inputBuffer,
+                    format: 'JPEG',
+                    quality: 1,
+                });
+                fs.writeFileSync(outputPath, outputBuffer);
+                fs.unlinkSync(filePath);
+                console.log(`✅ Converti avec heic-convert → ${outputPath}`);
+            } catch (errHeic) {
+                console.error(`❌ heic-convert a échoué pour ${filePath}`, errHeic.message);
+            }
+        } else {
+            console.error(`❌ sharp a échoué pour ${filePath}`, errSharp.message);
+        }
+    }
+};
+
+// 🔓 GET /media
 router.get('/', (req, res) => {
     const style = req.query.style;
-    const targetPath = style
-        ? path.join(uploadsPath, style)
-        : uploadsPath;
+    const targetPath = style ? path.join(uploadsPath, style) : uploadsPath;
 
     try {
         const media = walkDir(targetPath, style);
@@ -53,14 +104,13 @@ router.get('/', (req, res) => {
     }
 });
 
-// 🔓 GET /media/categories : retourne les sous-dossiers (catégories)
+// 🔓 GET /media/categories
 router.get('/categories', (req, res) => {
     try {
-        const categories = fs.readdirSync(uploadsPath)
-            .filter(name => {
-                const fullPath = path.join(uploadsPath, name);
-                return fs.statSync(fullPath).isDirectory();
-            });
+        const categories = fs.readdirSync(uploadsPath).filter(name => {
+            const fullPath = path.join(uploadsPath, name);
+            return fs.statSync(fullPath).isDirectory();
+        });
         res.json(categories);
     } catch (err) {
         console.error('Erreur lecture catégories', err);
@@ -68,7 +118,7 @@ router.get('/categories', (req, res) => {
     }
 });
 
-// 🔐 POST /media/category : créer une nouvelle catégorie
+// 🔐 POST /media/category
 router.post('/category', verifyToken, (req, res) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Nom de catégorie requis' });
@@ -89,7 +139,7 @@ router.post('/category', verifyToken, (req, res) => {
     }
 });
 
-// 🔐 DELETE /media/category : supprimer une catégorie (si vide)
+// 🔐 DELETE /media/category
 router.delete('/category', verifyToken, (req, res) => {
     const { name } = req.body;
     if (!name) return res.status(400).json({ error: 'Nom de catégorie requis' });
@@ -114,13 +164,10 @@ router.delete('/category', verifyToken, (req, res) => {
     }
 });
 
-// 🔓 GET /media/random-image : image aléatoire globale ou d’un style
+// 🔓 GET /media/random-image
 router.get('/random-image', (req, res) => {
     const style = req.query.style;
-    const targetPath = style
-        ? path.join(uploadsPath, style)
-        : uploadsPath;
-
+    const targetPath = style ? path.join(uploadsPath, style) : uploadsPath;
     const images = [];
 
     const walk = (dir) => {
@@ -137,10 +184,7 @@ router.get('/random-image', (req, res) => {
 
     try {
         walk(targetPath);
-
-        if (images.length === 0) {
-            return res.status(404).json({ error: 'Aucune image trouvée' });
-        }
+        if (images.length === 0) return res.status(404).json({ error: 'Aucune image trouvée' });
 
         const randomImage = images[Math.floor(Math.random() * images.length)];
         res.json({ url: randomImage });
@@ -150,12 +194,10 @@ router.get('/random-image', (req, res) => {
     }
 });
 
-// 🔐 DELETE /media : supprimer un média (protégé)
+// 🔐 DELETE /media
 router.delete('/', verifyToken, (req, res) => {
     const { file, category } = req.body;
-    if (!file || !category) {
-        return res.status(400).json({ error: 'Fichier ou catégorie manquant' });
-    }
+    if (!file || !category) return res.status(400).json({ error: 'Fichier ou catégorie manquant' });
 
     const filePath = path.join(uploadsPath, category, file);
 
@@ -169,6 +211,21 @@ router.delete('/', verifyToken, (req, res) => {
     } catch (err) {
         console.error('Erreur suppression fichier', err);
         res.status(500).json({ error: 'Erreur suppression' });
+    }
+});
+
+// 🔐 POST /media/upload
+router.post('/upload', verifyToken, upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'Aucun fichier fourni' });
+    }
+
+    try {
+        await convertToJpeg(req.file.path);
+        res.status(200).json({ message: 'Fichier uploadé (et converti si nécessaire)' });
+    } catch (err) {
+        console.error('❌ Erreur upload ou conversion', err);
+        res.status(500).json({ error: 'Erreur upload/conversion' });
     }
 });
 
