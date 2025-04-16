@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "description": "Backend de l'API Mystic Tattoo",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
-  },
   "author": "TonNom",
   "license": "MIT",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "change-password": "node scripts/changePassword.js"
+  },
   "dependencies": {
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
