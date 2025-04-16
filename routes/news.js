@@ -1,37 +1,48 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const verifyToken = require('../middlewares/auth'); // si tu veux protéger la création/modif
+const verifyToken = require('../middlewares/auth');
 
 const router = express.Router();
 const filePath = path.join(__dirname, '..', 'data', 'news.json');
 
-// 🔧 Initialiser le fichier s'il n'existe pas
-if (!fs.existsSync(filePath)) fs.writeFileSync(filePath, '[]');
+// 🔧 Initialiser le fichier s'il n'existe pas ou est invalide
+if (!fs.existsSync(filePath)) {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, '[]');
+} else {
+    try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        JSON.parse(content); // déclenche une erreur si invalide
+    } catch (err) {
+        console.warn('⚠️ news.json corrompu : réinitialisation automatique');
+        fs.writeFileSync(filePath, '[]');
+    }
+}
 
-// 🔁 Fonction utilitaire pour lire le fichier JSON
+// 🔁 Lecture des actualités
 const readNews = () => {
     try {
-        const data = fs.readFileSync(filePath);
-        return JSON.parse(data);
+        const data = fs.readFileSync(filePath, 'utf-8');
+        return data ? JSON.parse(data) : [];
     } catch (err) {
         console.error('❌ Erreur lecture JSON:', err);
         return [];
     }
 };
 
-// 💾 Fonction pour écrire dans le fichier JSON
+// 💾 Écriture dans le fichier
 const writeNews = (data) => {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 };
 
-// ✅ GET /news : lire toutes les actualités
+// ✅ GET /news : lire toutes les actus
 router.get('/', (req, res) => {
     const data = readNews();
     res.json(data);
 });
 
-// ✅ POST /news : créer une actualité (protégé si besoin)
+// ✅ POST /news : créer une actu
 router.post('/', verifyToken, (req, res) => {
     const { title, content, image } = req.body;
     if (!title || !content) {
@@ -52,7 +63,7 @@ router.post('/', verifyToken, (req, res) => {
     res.status(201).json(newItem);
 });
 
-// ✅ PUT /news/:id : modifier une actu existante
+// ✅ PUT /news/:id : modifier une actu
 router.put('/:id', verifyToken, (req, res) => {
     const { id } = req.params;
     const { title, content, image } = req.body;
@@ -72,7 +83,7 @@ router.put('/:id', verifyToken, (req, res) => {
     res.json(data[index]);
 });
 
-// ✅ DELETE /news/:id : supprimer une actu
+// ✅ DELETE /news/:id
 router.delete('/:id', verifyToken, (req, res) => {
     const { id } = req.params;
     const data = readNews();
