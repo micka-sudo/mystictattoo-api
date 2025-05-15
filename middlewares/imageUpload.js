@@ -14,17 +14,16 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-const imageUpload = upload.single('image'); // le champ d'upload s'appelle 'image'
+const imageUpload = upload.single('image');
 
 const convertHeicToJpeg = async (req, res, next) => {
     const file = req.file;
 
     if (!file) return next();
 
-    const ext = path.extname(file.originalname).toLowerCase();
+    const mimeType = file.mimetype;
 
-    // Si ce n'est PAS un .heic → ne rien faire, laisser tel quel (peut être une vidéo)
-    if (ext !== '.heic') {
+    if (mimeType !== 'image/heic') {
         return next();
     }
 
@@ -36,13 +35,12 @@ const convertHeicToJpeg = async (req, res, next) => {
             quality: 1
         });
 
-        const jpegFilename = file.filename.replace(/\.heic$/, '.jpg');
+        const jpegFilename = file.filename.replace(path.extname(file.filename), '.jpg');
         const jpegPath = path.join('uploads', jpegFilename);
 
         await fs.writeFile(jpegPath, outputBuffer);
-        await fs.unlink(file.path); // Supprime le fichier HEIC original
+        await fs.unlink(file.path);
 
-        // Met à jour req.file pour qu'il pointe vers la version .jpg
         req.file.filename = jpegFilename;
         req.file.path = jpegPath;
         req.file.mimetype = 'image/jpeg';
