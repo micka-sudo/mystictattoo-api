@@ -1,38 +1,50 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
 
+  <!-- Page d’accueil -->
   <url>
     <loc>https://www.mystic-tattoo.fr/</loc>
     <priority>1.0</priority>
+    <changefreq>weekly</changefreq>
+  </url>
+
+  <!-- Galerie générale -->
+  <url>
+    <loc>https://www.mystic-tattoo.fr/gallery</loc>
+    <priority>0.9</priority>
+    <changefreq>weekly</changefreq>
+  </url>
+
+  <!-- Page de réservation -->
+  <url>
+    <loc>https://www.mystic-tattoo.fr/reservation</loc>
+    <priority>0.9</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+
+  <!-- Pages de styles -->
+  <url>
+    <loc>https://www.mystic-tattoo.fr/gallery/blackwork</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
 
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/realiste</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
 
   <url>
-    <loc>https://www.mystic-tattoo.fr/booking</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/japonais</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
 
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=graphique</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/graphique</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
 
-  <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=japonais</loc>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=minimaliste</loc>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=realiste</loc>
-    <priority>0.8</priority>
-  </url>
 </urlset>
