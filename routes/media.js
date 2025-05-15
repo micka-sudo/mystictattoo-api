@@ -253,4 +253,26 @@ router.post('/upload', verifyToken, upload.single('file'), async (req, res) => {
     }
 });
 
+// ✅ NOUVELLE ROUTE POUR SITEMAP : /media/styles
+router.get('/styles', (req, res) => {
+    try {
+        const styles = fs.readdirSync(uploadsPath).filter((dir) => {
+            const fullPath = path.join(uploadsPath, dir);
+            if (!fs.statSync(fullPath).isDirectory()) return false;
+
+            const hasMedia = fs.readdirSync(fullPath).some(file => {
+                const ext = path.extname(file).toLowerCase();
+                return ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.mp4', '.mov', '.avi'].includes(ext);
+            });
+
+            return hasMedia;
+        });
+
+        res.json(styles);
+    } catch (err) {
+        console.error('Erreur lors de la lecture des styles', err);
+        res.status(500).json({ error: 'Erreur lecture des styles' });
+    }
+});
+
 module.exports = router;
