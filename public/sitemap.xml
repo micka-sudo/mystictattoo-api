@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <url>
+    <loc>https://www.mystic-tattoo.fr/</loc>
+    <priority>1.0</priority>
+  </url>
+
+  <url>
+    <loc>https://www.mystic-tattoo.fr/galerie</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.mystic-tattoo.fr/booking</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.mystic-tattoo.fr/galerie?style=graphique</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.mystic-tattoo.fr/galerie?style=japonais</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.mystic-tattoo.fr/galerie?style=minimaliste</loc>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.mystic-tattoo.fr/galerie?style=realiste</loc>
+    <priority>0.8</priority>
+  </url>
+</urlset>
