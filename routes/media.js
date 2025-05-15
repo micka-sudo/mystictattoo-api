@@ -9,6 +9,7 @@ const verifyToken = require('../middlewares/auth');
 const router = express.Router();
 const uploadsPath = path.join(__dirname, '..', 'uploads');
 
+// Fonction récursive pour explorer les fichiers
 const walkDir = (dir, baseCategory = '') => {
     const media = [];
 
@@ -39,7 +40,7 @@ const walkDir = (dir, baseCategory = '') => {
     }
 };
 
-// 🔧 Multer : upload avec sous-dossier par catégorie
+// 🔧 Multer pour upload
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const category = req.body.category || 'uncategorized';
@@ -56,7 +57,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// 🔁 Conversion vers JPEG si nécessaire
+// 🔁 Conversion automatique si HEIC, etc.
 const convertToJpeg = async (filePath) => {
     const ext = path.extname(filePath).toLowerCase();
     const convertible = ['.heic', '.webp', '.png', '.tiff', '.bmp', '.avif'];
@@ -115,6 +116,29 @@ router.get('/categories', (req, res) => {
     } catch (err) {
         console.error('Erreur lecture catégories', err);
         res.status(500).json({ error: 'Impossible de lire les catégories' });
+    }
+});
+
+// ✅ NOUVELLE ROUTE : /media/categories-with-content
+router.get('/categories-with-content', (req, res) => {
+    try {
+        const categories = fs.readdirSync(uploadsPath).filter((category) => {
+            const categoryPath = path.join(uploadsPath, category);
+
+            if (!fs.statSync(categoryPath).isDirectory()) return false;
+
+            const files = fs.readdirSync(categoryPath).filter(file => {
+                const ext = path.extname(file).toLowerCase();
+                return ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.mp4', '.mov', '.avi'].includes(ext);
+            });
+
+            return files.length > 0;
+        });
+
+        res.json(categories);
+    } catch (err) {
+        console.error('Erreur lecture catégories avec contenu', err);
+        res.status(500).json({ error: 'Erreur lecture catégories' });
     }
 });
 
