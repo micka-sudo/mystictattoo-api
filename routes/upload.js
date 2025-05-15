@@ -1,40 +1,36 @@
 const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const verifyToken = require('../middlewares/auth');
-
 const router = express.Router();
 
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads');
-    },
-    filename: function (req, file, cb) {
-        const unique = Date.now() + '-' + file.originalname;
-        cb(null, unique);
-    },
+// Middleware image : upload + conversion HEIC → JPG
+const { imageUpload, convertHeicToJpeg } = require('../middlewares/imageUpload');
+
+// Middleware vidéo : upload + conversion MOV → MP4
+const { videoUpload, convertMovToMp4 } = require('../middlewares/videoUpload');
+
+/**
+ * @route   POST /api/upload/image
+ * @desc    Upload d'image (JPG, PNG, HEIC) avec conversion HEIC → JPG
+ */
+router.post('/image', imageUpload, convertHeicToJpeg, (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'Aucune image reçue' });
+    }
+
+    const imageUrl = `/uploads/${req.file.filename}`;
+    res.status(200).json({ url: imageUrl });
 });
 
-const upload = multer({ storage });
+/**
+ * @route   POST /api/upload/video
+ * @desc    Upload de vidéo (.mov) avec conversion automatique MOV → MP4
+ */
+router.post('/video', videoUpload, convertMovToMp4, (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'Aucune vidéo reçue' });
+    }
 
-// ✅ Cette route nécessite un token valide
-router.post('/', verifyToken, upload.single('file'), (req, res) => {
-    const { category, tags } = req.body;
-    const file = req.file;
-
-    if (!file) return res.status(400).json({ error: 'Fichier manquant' });
-
-    const fileType = file.mimetype.startsWith('image') ? 'image' : 'video';
-
-    const mediaItem = {
-        file: file.filename,
-        url: '/uploads/' + file.filename,
-        type: fileType,
-        category,
-        tags: tags ? tags.split(',').map(t => t.trim()) : []
-    };
-
-    res.status(201).json(mediaItem);
+    const videoUrl = `/uploads/${req.file.filename}`;
+    res.status(200).json({ url: videoUrl });
 });
 
 module.exports = router;

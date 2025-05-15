@@ -25,3 +25,5 @@ coverage/
 # Build (au cas où tu as une étape de transpilation)
 dist/
 build/
+
+/uploads
