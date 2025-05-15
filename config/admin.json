@@ -1,3 +1,4 @@
 {
-  "passwordHash": "$2b$10$uS9k7V/xBdjk.luKxvWmtu0JEL2M/57hZhedUJYVI7WV2nes8CSB6"
+  "passwordHash": "$2b$10$uS9k7V/xBdjk.luKxvWmtu0JEL2M/57hZhedUJYVI7WV2nes8CSB6",
+  "showNewsOnHome": false
 }
