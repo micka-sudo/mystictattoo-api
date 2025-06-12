@@ -26,3 +26,6 @@ coverage/
 dist/
 build/
 
+/middlewares/
+/scripts/
+/uploads/

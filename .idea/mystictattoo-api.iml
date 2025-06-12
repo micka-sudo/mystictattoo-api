@@ -6,6 +6,10 @@
       <excludeFolder url="file://$MODULE_DIR$/build" />
       <excludeFolder url="file://$MODULE_DIR$/temp" />
       <excludeFolder url="file://$MODULE_DIR$/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/client/build" />
+      <excludeFolder url="file://$MODULE_DIR$/uploads/actus" />
+      <excludeFolder url="file://$MODULE_DIR$/uploads/oldschool" />
+      <excludeFolder url="file://$MODULE_DIR$/uploads/tribal" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
