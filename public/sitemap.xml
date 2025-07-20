@@ -1,78 +1,98 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
-
   <url>
     <loc>https://www.mystic-tattoo.fr/</loc>
     <priority>1.0</priority>
+    <changefreq>weekly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie</loc>
-    <priority>0.8</priority>
+    <loc>https://www.mystic-tattoo.fr/gallery</loc>
+    <priority>0.9</priority>
+    <changefreq>weekly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/booking</loc>
-    <priority>0.8</priority>
+    <loc>https://www.mystic-tattoo.fr/flash</loc>
+    <priority>0.9</priority>
+    <changefreq>weekly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=Dos</loc>
-    <priority>0.8</priority>
+    <loc>https://www.mystic-tattoo.fr/contact</loc>
+    <priority>0.7</priority>
+    <changefreq>yearly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=Flash</loc>
+    <loc>https://www.mystic-tattoo.fr/reservation</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=graphique</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/actus</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=japonais</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/Dos</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=Lettrage</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/graphique</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=minimaliste</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/japonais</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=Petits tattoos</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/Lettrage</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=realiste</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/minimaliste</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=Recouvrement</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/oldschool</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=Tattoo couleur</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/Petits tattoos</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=Tattoo noir et blanc</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/realiste</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
-
   <url>
-    <loc>https://www.mystic-tattoo.fr/galerie?style=Tradittionnel</loc>
+    <loc>https://www.mystic-tattoo.fr/gallery/Recouvrement</loc>
     <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://www.mystic-tattoo.fr/gallery/Tattoo couleur</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://www.mystic-tattoo.fr/gallery/Tattoo noir et blanc</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://www.mystic-tattoo.fr/gallery/Tradittionnel</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
+  </url>
+  <url>
+    <loc>https://www.mystic-tattoo.fr/gallery/tribal</loc>
+    <priority>0.8</priority>
+    <changefreq>monthly</changefreq>
   </url>
 </urlset>
