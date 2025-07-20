@@ -1,33 +1,38 @@
 # === Node.js backend ===
 
-# Dépendances
+# 📦 Dépendances
 node_modules/
 
-# Variables d’environnement
+# 🔐 Variables d’environnement
 .env
 
-# Fichiers de configuration sensibles
+# ⚙️ Fichiers de configuration sensibles
 config/admin.json
 
-# Fichiers de log
+# 🪵 Fichiers de log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Cache / outils
+# 🛠️ Fichiers IDE et systèmes
 .vscode/
 .idea/
 .DS_Store
 
-# Coverage (tests)
+# 🧪 Dossiers de couverture de test
 coverage/
 
-# Build (au cas où tu as une étape de transpilation)
+# 📁 Build (si transpilation future ou React dans /client)
 dist/
 build/
 
-/middlewares/
-# Ignore tout sauf le script sitemap
-/scripts/*
-!/scripts/generateSitemap.js
+# 📂 Dossier de fichiers uploadés (non versionnés)
+uploads/
 
+# 🔐 Scripts internes ignorés par défaut (sauf exception)
+scripts/*
+!scripts/generateSitemap.js
+
+
+# ❌ Si tu avais un dossier à ignorer en erreur (corrigé ici)
+# /middlewares/ ← à ne PAS ignorer, sinon le backend plante
