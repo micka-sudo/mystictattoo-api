@@ -5,6 +5,8 @@ const fs = require('fs');
 require('dotenv').config();
 
 const routes = require('./routes');
+const sitemapRoute = require('./routes/sitemap'); // 🧭 Route dynamique /sitemap.xml
+const robotsRoute = require('./routes/robots');   // 🤖 Route dynamique /robots.txt
 const adminConfigPath = path.join(__dirname, 'config', 'admin.json');
 
 const app = express();
@@ -35,6 +37,10 @@ app.use('/uploads', express.static(uploadsPath));
 
 // 🔁 Routes API
 app.use('/api', routes);
+
+// 🌍 Routes SEO (avant React fallback)
+app.use('/', sitemapRoute); // /sitemap.xml
+app.use('/', robotsRoute);  // /robots.txt
 
 // 📦 Intégration frontend React (build dans /client/build)
 const frontendPath = path.join(__dirname, 'client', 'build');
