@@ -1,34 +1,33 @@
-name: Génération automatique du sitemap
+name: Generate Sitemap
 
 on:
   push:
     branches:
       - main
-      - staging
 
 jobs:
   generate-sitemap:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Cloner le dépôt
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: ⚙️ Installer Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: '20'
 
-      - name: 📦 Installer les dépendances
-        run: npm install
+      - name: Install dependencies
+        run: npm ci
 
-      - name: 🗺️ Générer le sitemap
-        run: npm run sitemap
+      - name: Run sitemap generator
+        run: node scripts/generateSitemap.js
 
-      - name: 🔄 Commit du nouveau sitemap
+      - name: Commit and push sitemap.xml
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "actions@github.com"
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
           git add public/sitemap.xml
-          git diff --cached --quiet || git commit -m "🔁 Mise à jour automatique du sitemap.xml"
-          git push
+          git commit -m "🤖 update sitemap.xml" || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.GH_PUSH_TOKEN }}@github.com/micka-sudo/mystictattoo-api.git

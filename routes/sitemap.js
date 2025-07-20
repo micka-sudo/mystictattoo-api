@@ -1,32 +1,31 @@
-// routes/sitemap.js
-const express = require('express');
+// scripts/generateSitemap.js
 const fs = require('fs');
 const path = require('path');
 
-const router = express.Router();
 const uploadsPath = path.join(__dirname, '..', 'uploads');
+const publicPath = path.join(__dirname, '..', 'public');
+const outputPath = path.join(publicPath, 'sitemap.xml');
 
-router.get('/sitemap.xml', (req, res) => {
-    const domain = 'https://www.mystic-tattoo.fr';
+const domain = 'https://www.mystic-tattoo.fr';
 
-    let urls = [
-        { loc: '/', priority: '1.0', changefreq: 'weekly' },
-        { loc: '/gallery', priority: '0.9', changefreq: 'weekly' },
-        { loc: '/flash', priority: '0.9', changefreq: 'weekly' },
-        { loc: '/contact', priority: '0.7', changefreq: 'yearly' },
-        { loc: '/reservation', priority: '0.8', changefreq: 'monthly' }
-    ];
+const staticUrls = [
+    { loc: '/', priority: '1.0', changefreq: 'weekly' },
+    { loc: '/gallery', priority: '0.9', changefreq: 'weekly' },
+    { loc: '/flash', priority: '0.9', changefreq: 'weekly' },
+    { loc: '/contact', priority: '0.7', changefreq: 'yearly' },
+    { loc: '/reservation', priority: '0.8', changefreq: 'monthly' }
+];
 
-    // Ajout des styles dynamiques depuis les dossiers
+function generateSitemap() {
+    let urls = [...staticUrls];
+
     try {
-        const categories = fs.readdirSync(uploadsPath)
-            .filter(dir => {
-                const fullPath = path.join(uploadsPath, dir);
-                return fs.statSync(fullPath).isDirectory()
-                    && dir.toLowerCase() !== 'flash';
-            });
+        const categories = fs.readdirSync(uploadsPath).filter(dir => {
+            const fullPath = path.join(uploadsPath, dir);
+            return fs.statSync(fullPath).isDirectory() && dir.toLowerCase() !== 'flash';
+        });
 
-        categories.forEach((style) => {
+        categories.forEach(style => {
             urls.push({
                 loc: `/gallery/${style}`,
                 priority: '0.8',
@@ -34,22 +33,25 @@ router.get('/sitemap.xml', (req, res) => {
             });
         });
     } catch (err) {
-        console.error("Erreur lecture uploads/", err.message);
+        console.error('❌ Erreur lecture uploads/', err.message);
     }
 
-    // Génération XML
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map(u => `
-  <url>
+${urls.map(u => `  <url>
     <loc>${domain}${u.loc}</loc>
     <priority>${u.priority}</priority>
     <changefreq>${u.changefreq}</changefreq>
-  </url>`).join('')}
+  </url>`).join('\n')}
 </urlset>`;
 
-    res.header('Content-Type', 'application/xml');
-    res.send(xml);
-});
+    fs.writeFileSync(outputPath, xml, 'utf8');
+    console.log(`✅ Sitemap généré : ${outputPath}`);
+}
 
-module.exports = router;
+// 👉 Appel direct si lancé depuis CLI
+if (require.main === module) {
+    generateSitemap();
+}
+
+module.exports = generateSitemap;
