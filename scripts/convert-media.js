@@ -1,80 +1,107 @@
-const path = require('path');
-const fs = require('fs/promises');
-const heicConvert = require('heic-convert');
-const ffmpeg = require('fluent-ffmpeg');
-const ffmpegPath = require('ffmpeg-static');
-const mime = require('mime-types');
+import React from 'react';
+import Layout from '../layouts/Layout';
+import SEO from '../components/SEO';
+import styles from './Contact.module.scss';
 
-ffmpeg.setFfmpegPath(ffmpegPath);
+const SEO_KEYWORDS = "contact Mystic Tattoo, tatoueur Nancy, réseaux sociaux tatouage, salon tattoo Nancy";
 
-// Chemin de base
-const uploadsDir = path.join(__dirname, '..', 'uploads');
+const SCHEMA_ORG = {
+    "@context": "https://schema.org",
+    "@type": "TattooParlor",
+    "name": "Mystic Tattoo",
+    "image": "https://www.mystic-tattoo.fr/logo.png",
+    "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "19 Boulevard Jean Jaurès",
+        "addressLocality": "Nancy",
+        "postalCode": "54000",
+        "addressCountry": "FR"
+    },
+    "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 48.6921,
+        "longitude": 6.1844
+    },
+    "telephone": "+33688862646",
+    "url": "https://www.mystic-tattoo.fr/contact"
+};
 
-async function convertHeicToJpeg(filePath) {
-    const inputBuffer = await fs.readFile(filePath);
-    const outputBuffer = await heicConvert({
-        buffer: inputBuffer,
-        format: 'JPEG',
-        quality: 1
-    });
+const Contact = () => {
+    return (
+        <Layout>
+            <SEO
+                title="Contact - Mystic Tattoo | Tatoueur à Nancy 54000"
+                description="Retrouvez toutes les infos pour contacter Mystic Tattoo à Nancy : adresse, téléphone, Instagram, Facebook."
+                url="https://www.mystic-tattoo.fr/contact"
+                keywords={SEO_KEYWORDS}
+            />
 
-    const outputPath = filePath.replace(/\.[Hh][Ee][Ii][Cc]$/, '.jpg');
-    await fs.writeFile(outputPath, outputBuffer);
-    await fs.unlink(filePath);
-    console.log(`✅ Converti image : ${filePath} → ${outputPath}`);
-}
+            {/* Schema.org pour Google */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(SCHEMA_ORG) }}
+            />
 
-async function convertMovToMp4(filePath) {
-    const outputPath = filePath.replace(/\.[Mm][Oo][Vv]$/, '.mp4');
+            {/* 📸 Image de présentation avant le contenu de contact */}
+            <div className={styles.imageWrapper}>
+                <img
+                    src="/images/IMG_6456_1752991546168.png"
+                    alt="Tatouage - Mystic Tattoo"
+                    className={styles.bannerImage}
+                />
+            </div>
 
-    return new Promise((resolve, reject) => {
-        ffmpeg(filePath)
-            .output(outputPath)
-            .videoCodec('libx264')
-            .audioCodec('aac')
-            .on('end', async () => {
-                await fs.unlink(filePath);
-                console.log(`🎞️ Converti vidéo : ${filePath} → ${outputPath}`);
-                resolve();
-            })
-            .on('error', (err) => {
-                console.error(`❌ Erreur conversion vidéo : ${filePath}`, err);
-                reject(err);
-            })
-            .run();
-    });
-}
+            <section className={styles.contact}>
+                <h1 className={styles.title}>Contact</h1>
 
-async function processDirectory(directoryPath) {
-    const items = await fs.readdir(directoryPath, { withFileTypes: true });
+                {/* 🎉 Message d’accueil sympa */}
+                <p className={styles.intro}>
+                    Une question, une idée de tatouage&nbsp;?
+                    <br />
+                    N’hésitez pas à me contacter ou à passer directement au salon ! 🤘
+                </p>
 
-    for (const item of items) {
-        const itemPath = path.join(directoryPath, item.name);
+                <div className={styles.card}>
+                    <div className={styles.info}>
+                        <div className={styles.infoItem}>
+                            <img src="/icons/carte.png" alt="Adresse" />
+                            <p>
+                                <a href="https://www.google.com/maps?q=19+Boulevard+Jean+Jaurès,+54000+Nancy">
+                                    19 Boulevard Jean Jaurès, 54000 Nancy
+                                </a>
+                            </p>
+                        </div>
+                        <div className={styles.infoItem}>
+                            <img src="/icons/sonnerie-du-telephone.png" alt="Téléphone" />
+                            <p>
+                                <a href="tel:+33688862646">06.88.86.26.46</a>
+                            </p>
+                        </div>
+                    </div>
 
-        if (item.isDirectory()) {
-            await processDirectory(itemPath); // récursivité
-        } else {
-            const mimeType = mime.lookup(itemPath);
-            const ext = path.extname(item.name).toLowerCase();
+                    <div className={styles.socials}>
+                        <h2>Suivez-moi</h2>
+                        <div className={styles.socialLinks}>
+                            <a
+                                href="https://www.instagram.com/directory.nancy.tattoo.artists/p/CvKA3RAri-q/?locale=ne_NP"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <img src="/icons/instagram.png" alt="Instagram" />
+                            </a>
+                            <a
+                                href="https://www.facebook.com/p/Mystic-Tattoo-Nancy-100057617876652/?locale=fr_FR"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <img src="/icons/facebook.png" alt="Facebook" />
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </Layout>
+    );
+};
 
-            if (mimeType === 'image/heic' || ext === '.heic') {
-                await convertHeicToJpeg(itemPath);
-            }
-
-            if (ext === '.mov') {
-                await convertMovToMp4(itemPath);
-            }
-        }
-    }
-}
-
-// Lancer le script
-(async () => {
-    try {
-        console.log('🔍 Scan du dossier uploads...');
-        await processDirectory(uploadsDir);
-        console.log('✅ Conversion terminée !');
-    } catch (err) {
-        console.error('❌ Erreur lors de la conversion :', err);
-    }
-})();
+export default Contact;
