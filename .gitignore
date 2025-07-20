@@ -27,5 +27,7 @@ dist/
 build/
 
 /middlewares/
-/scripts/
+# Ignore tout sauf le script sitemap
+/scripts/*
+!/scripts/generateSitemap.js
 
