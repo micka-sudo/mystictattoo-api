@@ -13,15 +13,27 @@ const router = express.Router();
 const uploadsPath = path.join(__dirname, "..", "uploads");
 
 /**
- * Multer : stockage local par catégorie
+ * 🔧 Multer : stockage local par catégorie
+ * - Enregistre d'abord le fichier brut dans /uploads/<category>/
  */
 const storage = multer.diskStorage({
+    /**
+     * @param {express.Request} req
+     * @param {Express.Multer.File} file
+     * @param {(error: Error | null, destination: string) => void} cb
+     */
     destination: (req, file, cb) => {
         const category = req.body.category || "uncategorized";
         const dir = path.join(uploadsPath, category);
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
+
+    /**
+     * @param {express.Request} req
+     * @param {Express.Multer.File} file
+     * @param {(error: Error | null, filename: string) => void} cb
+     */
     filename: (req, file, cb) => {
         const ext = path.extname(file.originalname).toLowerCase();
         const baseName = path
@@ -38,7 +50,9 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 /**
- * Convertit une image vers une version optimisée .opt.webp
+ * 🔄 Convertit une image vers une version optimisée .opt.webp
+ * @param {string} filePath Chemin absolu du fichier source
+ * @returns {Promise<string>} Chemin absolu du fichier .opt.webp généré
  */
 const convertToWebP = async (filePath) => {
     const outputPath = filePath.replace(path.extname(filePath), ".opt.webp");
@@ -53,16 +67,16 @@ const convertToWebP = async (filePath) => {
 };
 
 /**
- * Extrait le public_id Cloudinary à partir de l'URL sécurisée
+ * 🧩 Extrait le public_id Cloudinary à partir de l'URL sécurisée
  * ex: https://res.cloudinary.com/.../upload/v123456/mystic/Tattoo noir et blanc/monimage.opt.webp
  *  → public_id = "mystic/Tattoo noir et blanc/monimage.opt"
+ * @param {string} cloudUrl
+ * @returns {string | null}
  */
 const getCloudinaryPublicId = (cloudUrl) => {
     if (!cloudUrl) return null;
     try {
-        const match = cloudUrl.match(
-            /\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+$/
-        );
+        const match = cloudUrl.match(/\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+$/);
         return match ? match[1] : null;
     } catch (e) {
         console.error("❌ Impossible d'extraire public_id Cloudinary :", e);
@@ -72,11 +86,11 @@ const getCloudinaryPublicId = (cloudUrl) => {
 
 /**
  * POST /media/upload
- * Upload d'un média (image/vidéo) :
- * - Enregistrement local
- * - Conversion .opt.webp pour les images
- * - Upload Cloudinary (images)
- * - Enregistrement MongoDB
+ * 🔼 Upload d'un média (image/vidéo) :
+ *  - Enregistrement local
+ *  - Conversion .opt.webp pour les images
+ *  - Upload Cloudinary (images)
+ *  - Enregistrement MongoDB (avec cloudUrl)
  */
 router.post(
     "/upload",
@@ -96,20 +110,22 @@ router.post(
             let finalFilename = req.file.filename;
             let fileUrl = `/uploads/${category}/${finalFilename}`;
             let cloudUrl = null;
-            let type = isImage ? "image" : "video";
+            const type = isImage ? "image" : "video";
 
             if (isImage) {
+                // 1. Conversion en .opt.webp
                 const optimizedPath = await convertToWebP(fullPath);
                 const optimizedName = path.basename(optimizedPath);
 
                 finalFilename = optimizedName;
                 fileUrl = `/uploads/${category}/${optimizedName}`;
 
-                console.log("▶️ UPLOAD IMAGE → envoi à Cloudinary...", {
+                console.log("▶️ [UPLOAD IMAGE] → envoi à Cloudinary...", {
                     category,
                     optimizedPath,
                 });
 
+                // 2. Envoi sur Cloudinary
                 try {
                     const cloudRes = await cloudinary.uploader.upload(optimizedPath, {
                         folder: `mystic/${category}`,
@@ -125,12 +141,13 @@ router.post(
                 }
             }
 
+            // 3. Enregistrement en BDD
             const newMedia = await Media.create({
                 filename: finalFilename,
                 path: fileUrl,
                 category,
                 type,
-                cloudUrl,
+                cloudUrl, // ⬅ très important pour le lien avec Cloudinary
                 tags: [],
             });
 
@@ -143,22 +160,18 @@ router.post(
             });
         } catch (err) {
             console.error("❌ Erreur traitement fichier :", err);
-            return res
-                .status(500)
-                .json({ error: "Erreur upload ou BDD" });
+            return res.status(500).json({ error: "Erreur upload ou BDD" });
         }
     }
 );
 
 /**
  * GET /media
- * Liste des médias (optionnellement filtrés par ?style=catégorie)
+ * 📥 Liste des médias (optionnellement filtrés par ?style=catégorie)
  * + dédup visuelle : priorité .opt.webp > .webp > jpg/png/heic/mp4
  */
 router.get("/", async (req, res) => {
-    const filter = req.query.style
-        ? { category: req.query.style }
-        : {};
+    const filter = req.query.style ? { category: req.query.style } : {};
 
     try {
         const media = await Media.find(filter).sort({ createdAt: -1 });
@@ -167,6 +180,11 @@ router.get("/", async (req, res) => {
 
         const seen = new Map();
 
+        /**
+         * Score de priorité des extensions pour la dédup
+         * @param {string} filename
+         * @returns {number}
+         */
         const scoreExt = (filename = "") => {
             const f = filename.toLowerCase();
             if (f.endsWith(".opt.webp")) return 3;
@@ -190,16 +208,14 @@ router.get("/", async (req, res) => {
             }
         }
 
-        const filtered = Array.from(seen.values()).map(
-            ({ doc }) => doc
-        );
+        const filtered = Array.from(seen.values()).map(({ doc }) => doc);
 
         const result = filtered.map((m) => {
             const obj = m.toObject();
             return {
                 ...obj,
                 url: obj.path,
-                cloudinaryUrl: obj.cloudUrl || null,
+                cloudinaryUrl: obj.cloudUrl || null, // ⬅ utilisé par le front
             };
         });
 
@@ -208,18 +224,16 @@ router.get("/", async (req, res) => {
         return res.json(result);
     } catch (err) {
         console.error("❌ Erreur /media :", err);
-        return res
-            .status(500)
-            .json({ error: "Erreur lecture BDD" });
+        return res.status(500).json({ error: "Erreur lecture BDD" });
     }
 });
 
 /**
  * DELETE /media/:id
- * Supprime :
- * - l'entrée Mongo
- * - le fichier local (si présent)
- * - l'asset Cloudinary (si cloudUrl présent)
+ * ❌ Supprime :
+ *  - l'entrée Mongo
+ *  - le fichier local (si présent)
+ *  - l'asset Cloudinary (si cloudUrl présent)
  */
 router.delete("/:id", verifyToken, async (req, res) => {
     const { id } = req.params;
@@ -230,29 +244,22 @@ router.delete("/:id", verifyToken, async (req, res) => {
             return res.status(404).json({ error: "Média introuvable" });
         }
 
-        // suppression Cloudinary si present
+        // 1. Suppression Cloudinary si présent
         if (doc.cloudUrl) {
             const publicId = getCloudinaryPublicId(doc.cloudUrl);
             if (publicId) {
                 try {
                     await cloudinary.uploader.destroy(publicId, {
-                        resource_type:
-                            doc.type === "video" ? "video" : "image",
+                        resource_type: doc.type === "video" ? "video" : "image",
                     });
-                    console.log(
-                        "🧹 Cloudinary asset supprimé :",
-                        publicId
-                    );
+                    console.log("🧹 Cloudinary asset supprimé :", publicId);
                 } catch (e) {
-                    console.error(
-                        "❌ Erreur suppression Cloudinary :",
-                        e
-                    );
+                    console.error("❌ Erreur suppression Cloudinary :", e);
                 }
             }
         }
 
-        // suppression fichier local si présent
+        // 2. Suppression du fichier local si présent
         try {
             const filePath = path.join(
                 uploadsPath,
@@ -264,39 +271,32 @@ router.delete("/:id", verifyToken, async (req, res) => {
                 console.log("🧹 Fichier local supprimé :", filePath);
             }
         } catch (e) {
-            console.error(
-                "❌ Erreur suppression fichier local :",
-                e
-            );
+            console.error("❌ Erreur suppression fichier local :", e);
         }
 
+        // 3. Suppression en BDD
         await Media.findByIdAndDelete(id);
 
         return res.json({ success: true });
     } catch (err) {
         console.error("❌ Erreur DELETE /media/:id :", err);
-        return res
-            .status(500)
-            .json({ error: "Erreur suppression média" });
+        return res.status(500).json({ error: "Erreur suppression média" });
     }
 });
 
 /**
  * PUT /media/:id/move
- * Déplace un média vers une autre catégorie
- * - met à jour la catégorie
- * - met à jour le path local
- * (Cloudinary : on laisse l'asset dans l'ancien dossier,
- *   l'URL reste valide → pas bloquant pour l'affichage)
+ * 📦 Déplace un média vers une autre catégorie
+ *  - met à jour la catégorie
+ *  - met à jour le path local
+ *  (Cloudinary : on laisse l'asset dans l'ancien dossier, l'URL reste valide)
  */
 router.put("/:id/move", verifyToken, async (req, res) => {
     const { id } = req.params;
     const { newCategory } = req.body;
 
     if (!newCategory) {
-        return res
-            .status(400)
-            .json({ error: "newCategory requis" });
+        return res.status(400).json({ error: "newCategory requis" });
     }
 
     try {
@@ -308,7 +308,7 @@ router.put("/:id/move", verifyToken, async (req, res) => {
         const oldCategory = doc.category || "uncategorized";
         const filename = doc.filename || "";
 
-        // déplacement du fichier local si présent
+        // Déplacement du fichier local si présent
         try {
             const oldPath = path.join(uploadsPath, oldCategory, filename);
             const newDir = path.join(uploadsPath, newCategory);
@@ -320,10 +320,7 @@ router.put("/:id/move", verifyToken, async (req, res) => {
                 console.log("📦 Fichier déplacé :", oldPath, "→", newPath);
             }
         } catch (e) {
-            console.error(
-                "❌ Erreur déplacement fichier local :",
-                e
-            );
+            console.error("❌ Erreur déplacement fichier local :", e);
         }
 
         doc.category = newCategory;
@@ -339,15 +336,13 @@ router.put("/:id/move", verifyToken, async (req, res) => {
         });
     } catch (err) {
         console.error("❌ Erreur PUT /media/:id/move :", err);
-        return res
-            .status(500)
-            .json({ error: "Erreur déplacement média" });
+        return res.status(500).json({ error: "Erreur déplacement média" });
     }
 });
 
 /**
  * GET /media/categories
- * Liste toutes les catégories existantes
+ * 📂 Liste toutes les catégories existantes
  */
 router.get("/categories", async (req, res) => {
     try {
@@ -356,15 +351,13 @@ router.get("/categories", async (req, res) => {
         return res.json(categories);
     } catch (err) {
         console.error("❌ Erreur /categories :", err);
-        return res
-            .status(500)
-            .json({ error: "Erreur lecture catégories" });
+        return res.status(500).json({ error: "Erreur lecture catégories" });
     }
 });
 
 /**
  * GET /media/categories-with-content
- * Liste les catégories qui ont au moins un média
+ * 📂 Liste les catégories qui ont au moins un média
  */
 router.get("/categories-with-content", async (req, res) => {
     try {
@@ -373,24 +366,16 @@ router.get("/categories-with-content", async (req, res) => {
 
         const categoriesWithContent = [];
         for (const cat of categories) {
-            const count = await Media.countDocuments({
-                category: cat,
-            });
+            const count = await Media.countDocuments({ category: cat });
             if (count > 0) {
                 categoriesWithContent.push(cat);
             }
         }
 
-        console.log(
-            "✅ Catégories avec contenu :",
-            categoriesWithContent
-        );
+        console.log("✅ Catégories avec contenu :", categoriesWithContent);
         return res.json(categoriesWithContent);
     } catch (err) {
-        console.error(
-            "❌ Erreur /categories-with-content :",
-            err
-        );
+        console.error("❌ Erreur /categories-with-content :", err);
         return res
             .status(500)
             .json({ error: "Erreur lecture catégories" });
@@ -399,7 +384,7 @@ router.get("/categories-with-content", async (req, res) => {
 
 /**
  * GET /media/random
- * Retourne une image aléatoire (hors Flash/actus) pour la Home
+ * 🎲 Retourne une image aléatoire (hors Flash/actus) pour la Home
  */
 router.get("/random", async (req, res) => {
     try {
@@ -407,14 +392,7 @@ router.get("/random", async (req, res) => {
 
         const baseFilter = {
             category: {
-                $nin: [
-                    "Flash",
-                    "flash",
-                    "FLASH",
-                    "actus",
-                    "Actus",
-                    "ACTUS",
-                ],
+                $nin: ["Flash", "flash", "FLASH", "actus", "Actus", "ACTUS"],
             },
             type: "image",
         };
@@ -423,9 +401,7 @@ router.get("/random", async (req, res) => {
         console.log("📸 [API] /media/random → count =", count);
 
         if (!count) {
-            return res
-                .status(404)
-                .json({ error: "Aucune image disponible" });
+            return res.status(404).json({ error: "Aucune image disponible" });
         }
 
         const randomIndex = Math.floor(Math.random() * count);
@@ -460,10 +436,7 @@ router.get("/random", async (req, res) => {
             cloudinaryUrl: mediaDoc.cloudUrl || null,
         });
     } catch (err) {
-        console.error(
-            "❌ [API] /media/random → Erreur serveur :",
-            err
-        );
+        console.error("❌ [API] /media/random → Erreur serveur :", err);
         return res.status(500).json({
             error: "Erreur serveur sur /media/random",
         });
