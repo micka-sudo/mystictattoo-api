@@ -395,4 +395,120 @@ router.get('/random', async (_req: Request, res: Response): Promise<void> => {
     }
 });
 
+// POST /media/sync - Synchronise les assets Cloudinary vers MongoDB (protégé)
+router.post('/sync', verifyToken, async (_req: Request, res: Response): Promise<void> => {
+    try {
+        console.log('[SYNC] Démarrage synchronisation Cloudinary -> MongoDB');
+
+        const results = {
+            added: 0,
+            updated: 0,
+            skipped: 0,
+            errors: 0,
+            categories: {} as Record<string, number>,
+        };
+
+        // Fonction pour récupérer tous les assets d'un type
+        const fetchAssets = async (resourceType: 'image' | 'video') => {
+            const assets: any[] = [];
+            let nextCursor: string | undefined;
+
+            do {
+                const result = await cloudinary.api.resources({
+                    type: 'upload',
+                    resource_type: resourceType,
+                    prefix: 'mystic/',
+                    max_results: 500,
+                    next_cursor: nextCursor,
+                });
+
+                assets.push(...result.resources);
+                nextCursor = result.next_cursor;
+            } while (nextCursor);
+
+            return assets;
+        };
+
+        // Récupérer images et vidéos
+        console.log('[SYNC] Récupération des assets Cloudinary...');
+        const images = await fetchAssets('image');
+        const videos = await fetchAssets('video');
+
+        const allAssets = [
+            ...images.map((a: any) => ({ ...a, mediaType: 'image' })),
+            ...videos.map((a: any) => ({ ...a, mediaType: 'video' })),
+        ];
+
+        console.log(`[SYNC] ${allAssets.length} assets trouvés sur Cloudinary`);
+
+        // Synchroniser chaque asset
+        for (const asset of allAssets) {
+            try {
+                // Extraire catégorie du public_id (format: mystic/Category/filename)
+                const parts = asset.public_id.split('/');
+                const category = parts.length >= 2 && parts[0] === 'mystic' ? parts[1] : 'uncategorized';
+                const baseName = parts[parts.length - 1];
+                const filename = `${baseName}.${asset.format}`;
+                const cloudUrl = asset.secure_url;
+
+                // Compter par catégorie
+                results.categories[category] = (results.categories[category] || 0) + 1;
+
+                // Vérifier si déjà en base par cloudUrl
+                const existingByUrl = await Media.findOne({ cloudUrl });
+                if (existingByUrl) {
+                    results.skipped++;
+                    continue;
+                }
+
+                // Vérifier par nom de fichier similaire
+                const existingByName = await Media.findOne({
+                    filename: { $regex: baseName, $options: 'i' },
+                });
+
+                if (existingByName) {
+                    // Mettre à jour cloudUrl si manquant
+                    if (!existingByName.cloudUrl) {
+                        existingByName.cloudUrl = cloudUrl;
+                        await existingByName.save();
+                        results.updated++;
+                    } else {
+                        results.skipped++;
+                    }
+                    continue;
+                }
+
+                // Créer nouveau média
+                await Media.create({
+                    filename,
+                    path: `/uploads/${category}/${filename}`,
+                    category,
+                    type: asset.mediaType,
+                    cloudUrl,
+                    tags: [],
+                });
+
+                results.added++;
+                console.log(`[SYNC] Ajouté: ${category}/${filename}`);
+
+            } catch (err) {
+                console.error(`[SYNC] Erreur pour ${asset.public_id}:`, err);
+                results.errors++;
+            }
+        }
+
+        console.log('[SYNC] Synchronisation terminée:', results);
+
+        res.json({
+            success: true,
+            message: 'Synchronisation terminée',
+            results,
+        });
+
+    } catch (err) {
+        console.error('[SYNC] Erreur:', err);
+        res.status(500).json({ error: 'Erreur synchronisation Cloudinary' });
+    }
+});
+
 export default router;
