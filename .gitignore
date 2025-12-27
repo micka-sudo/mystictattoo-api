@@ -39,3 +39,8 @@ scripts/*
 
 # ❌ Si tu avais un dossier à ignorer en erreur (corrigé ici)
 # /middlewares/ ← à ne PAS ignorer, sinon le backend plante
+
+# 📝 Documentation locale (ne pas commiter)
+TODO.md
+TODO-*.md
+DEPLOY-WORKFLOW.md
