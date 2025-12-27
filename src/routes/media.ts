@@ -511,4 +511,67 @@ router.post('/sync', verifyToken, async (_req: Request, res: Response): Promise<
     }
 });
 
+// GET /media/cloudinary-status - Liste ce qui est sur Cloudinary (protégé)
+router.get('/cloudinary-status', verifyToken, async (_req: Request, res: Response): Promise<void> => {
+    try {
+        console.log('[CLOUDINARY] Récupération des assets...');
+
+        const fetchAssets = async (resourceType: 'image' | 'video', prefix: string = '') => {
+            const assets: any[] = [];
+            let nextCursor: string | undefined;
+
+            do {
+                const options: any = {
+                    type: 'upload',
+                    resource_type: resourceType,
+                    max_results: 500,
+                    next_cursor: nextCursor,
+                };
+                if (prefix) options.prefix = prefix;
+
+                const result = await cloudinary.api.resources(options);
+                assets.push(...result.resources);
+                nextCursor = result.next_cursor;
+            } while (nextCursor);
+
+            return assets;
+        };
+
+        // Récupérer TOUS les assets (avec et sans prefix mystic/)
+        const imagesWithPrefix = await fetchAssets('image', 'mystic/');
+        const imagesWithoutPrefix = await fetchAssets('image', '');
+        const videosWithPrefix = await fetchAssets('video', 'mystic/');
+
+        // Analyser les dossiers
+        const folders: Record<string, number> = {};
+        const allImages = [...imagesWithPrefix, ...imagesWithoutPrefix];
+
+        for (const img of allImages) {
+            const parts = img.public_id.split('/');
+            const folder = parts.length > 1 ? parts.slice(0, -1).join('/') : '(racine)';
+            folders[folder] = (folders[folder] || 0) + 1;
+        }
+
+        res.json({
+            summary: {
+                imagesInMystic: imagesWithPrefix.length,
+                totalImages: imagesWithoutPrefix.length,
+                videosInMystic: videosWithPrefix.length,
+            },
+            folders: Object.entries(folders)
+                .sort((a, b) => b[1] - a[1])
+                .map(([folder, count]) => ({ folder, count })),
+            sampleImages: imagesWithoutPrefix.slice(0, 20).map((img: any) => ({
+                public_id: img.public_id,
+                folder: img.public_id.split('/').slice(0, -1).join('/') || '(racine)',
+                url: img.secure_url,
+            })),
+        });
+
+    } catch (err) {
+        console.error('[CLOUDINARY] Erreur:', err);
+        res.status(500).json({ error: 'Erreur lecture Cloudinary' });
+    }
+});
+
 export default router;
