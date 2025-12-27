@@ -63,82 +63,107 @@ router.get('/', verifyToken, async (req: Request, res: Response) => {
         const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
         const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        // Visites totales
-        const totalVisits = await Visit.countDocuments();
+        // Valeurs par défaut si collection vide
+        let totalVisits = 0;
+        let todayVisits = 0;
+        let weekVisits = 0;
+        let monthVisits = 0;
+        let uniqueVisitors: string[] = [];
+        let topPages: Array<{ _id: string; count: number }> = [];
+        let deviceStats: Array<{ _id: string; count: number }> = [];
+        let browserStats: Array<{ _id: string; count: number }> = [];
+        let dailyVisits: Array<{ _id: string; count: number }> = [];
+        let refererStats: Array<{ _id: string; count: number }> = [];
 
-        // Visites aujourd'hui
-        const todayVisits = await Visit.countDocuments({
-            createdAt: { $gte: today }
-        });
+        try {
+            // Visites totales
+            totalVisits = await Visit.countDocuments();
 
-        // Visites cette semaine
-        const weekVisits = await Visit.countDocuments({
-            createdAt: { $gte: weekAgo }
-        });
+            // Visites aujourd'hui
+            todayVisits = await Visit.countDocuments({
+                createdAt: { $gte: today }
+            });
 
-        // Visites ce mois
-        const monthVisits = await Visit.countDocuments({
-            createdAt: { $gte: monthAgo }
-        });
+            // Visites cette semaine
+            weekVisits = await Visit.countDocuments({
+                createdAt: { $gte: weekAgo }
+            });
 
-        // Visiteurs uniques (par IP) ce mois
-        const uniqueVisitors = await Visit.distinct('ip', {
-            createdAt: { $gte: monthAgo }
-        });
+            // Visites ce mois
+            monthVisits = await Visit.countDocuments({
+                createdAt: { $gte: monthAgo }
+            });
 
-        // Pages les plus visitées (top 10)
-        const topPages = await Visit.aggregate([
-            { $match: { createdAt: { $gte: monthAgo } } },
-            { $group: { _id: '$page', count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 10 }
-        ]);
+            // Visiteurs uniques (par IP) ce mois
+            uniqueVisitors = await Visit.distinct('ip', {
+                createdAt: { $gte: monthAgo }
+            });
+        } catch (countErr) {
+            console.error('Erreur comptage visites:', countErr);
+        }
 
-        // Répartition par appareil
-        const deviceStats = await Visit.aggregate([
-            { $match: { createdAt: { $gte: monthAgo } } },
-            { $group: { _id: '$device', count: { $sum: 1 } } }
-        ]);
+        try {
+            // Pages les plus visitées (top 10)
+            topPages = await Visit.aggregate([
+                { $match: { createdAt: { $gte: monthAgo } } },
+                { $group: { _id: '$page', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 10 }
+            ]);
+        } catch (aggErr) {
+            console.error('Erreur agrégation topPages:', aggErr);
+        }
 
-        // Répartition par navigateur
-        const browserStats = await Visit.aggregate([
-            { $match: { createdAt: { $gte: monthAgo } } },
-            { $group: { _id: '$browser', count: { $sum: 1 } } },
-            { $sort: { count: -1 } }
-        ]);
+        try {
+            // Répartition par appareil
+            deviceStats = await Visit.aggregate([
+                { $match: { createdAt: { $gte: monthAgo } } },
+                { $group: { _id: '$device', count: { $sum: 1 } } }
+            ]);
+        } catch (aggErr) {
+            console.error('Erreur agrégation deviceStats:', aggErr);
+        }
 
-        // Visites par jour (30 derniers jours)
-        const dailyVisits = await Visit.aggregate([
-            { $match: { createdAt: { $gte: monthAgo } } },
-            {
-                $group: {
-                    _id: {
-                        $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
-                    },
-                    count: { $sum: 1 }
-                }
-            },
-            { $sort: { _id: 1 } }
-        ]);
+        try {
+            // Répartition par navigateur
+            browserStats = await Visit.aggregate([
+                { $match: { createdAt: { $gte: monthAgo } } },
+                { $group: { _id: '$browser', count: { $sum: 1 } } },
+                { $sort: { count: -1 } }
+            ]);
+        } catch (aggErr) {
+            console.error('Erreur agrégation browserStats:', aggErr);
+        }
 
-        // Sources de trafic (referers)
-        const refererStats = await Visit.aggregate([
-            { $match: { createdAt: { $gte: monthAgo }, referer: { $ne: '' } } },
-            {
-                $addFields: {
-                    domain: {
-                        $cond: {
-                            if: { $regexMatch: { input: '$referer', regex: /^https?:\/\/([^\/]+)/ } },
-                            then: { $arrayElemAt: [{ $regexFind: { input: '$referer', regex: /^https?:\/\/([^\/]+)/ } }, 0] },
-                            else: 'Direct'
-                        }
+        try {
+            // Visites par jour (30 derniers jours)
+            dailyVisits = await Visit.aggregate([
+                { $match: { createdAt: { $gte: monthAgo } } },
+                {
+                    $group: {
+                        _id: {
+                            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+                        },
+                        count: { $sum: 1 }
                     }
-                }
-            },
-            { $group: { _id: '$referer', count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-            { $limit: 10 }
-        ]);
+                },
+                { $sort: { _id: 1 } }
+            ]);
+        } catch (aggErr) {
+            console.error('Erreur agrégation dailyVisits:', aggErr);
+        }
+
+        try {
+            // Sources de trafic (referers)
+            refererStats = await Visit.aggregate([
+                { $match: { createdAt: { $gte: monthAgo }, referer: { $ne: '' } } },
+                { $group: { _id: '$referer', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 10 }
+            ]);
+        } catch (aggErr) {
+            console.error('Erreur agrégation refererStats:', aggErr);
+        }
 
         res.json({
             summary: {
@@ -156,7 +181,21 @@ router.get('/', verifyToken, async (req: Request, res: Response) => {
         });
     } catch (err) {
         console.error('Erreur récupération stats:', err);
-        res.status(500).json({ error: 'Erreur serveur' });
+        // Retourner des données vides plutôt qu'une erreur 500
+        res.json({
+            summary: {
+                total: 0,
+                today: 0,
+                week: 0,
+                month: 0,
+                uniqueVisitors: 0,
+            },
+            topPages: [],
+            deviceStats: [],
+            browserStats: [],
+            dailyVisits: [],
+            refererStats: [],
+        });
     }
 });
 

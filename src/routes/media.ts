@@ -313,6 +313,67 @@ router.put('/:id/move', verifyToken, async (req: AuthenticatedRequest, res: Resp
     }
 });
 
+// POST /media/:id/copy - Copier un média vers une autre catégorie
+router.post('/:id/copy', verifyToken, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    const { id } = req.params;
+    const { targetCategory } = req.body;
+
+    if (!targetCategory) {
+        res.status(400).json({ error: 'targetCategory requis' });
+        return;
+    }
+
+    try {
+        const original = await Media.findById(id);
+        if (!original) {
+            res.status(404).json({ error: 'Média introuvable' });
+            return;
+        }
+
+        // Générer un nouveau nom de fichier unique
+        const ext = path.extname(original.filename || '');
+        const baseName = path.basename(original.filename || '', ext);
+        const newFilename = `${baseName}-copy-${Date.now()}${ext}`;
+
+        // Créer le nouveau document média
+        const newMedia = new Media({
+            filename: newFilename,
+            category: targetCategory,
+            type: original.type,
+            path: `/uploads/${targetCategory}/${newFilename}`,
+            cloudUrl: original.cloudUrl, // Réutilise la même URL Cloudinary
+        });
+
+        // Copier le fichier local si existe
+        try {
+            const oldPath = path.join(uploadsPath, original.category || 'uncategorized', original.filename || '');
+            const newDir = path.join(uploadsPath, targetCategory);
+            const newPath = path.join(newDir, newFilename);
+
+            if (fs.existsSync(oldPath)) {
+                fs.mkdirSync(newDir, { recursive: true });
+                fs.copyFileSync(oldPath, newPath);
+                console.log('Fichier copié :', oldPath, '->', newPath);
+            }
+        } catch (e) {
+            console.error('Erreur copie fichier local :', e);
+        }
+
+        await newMedia.save();
+
+        const obj = newMedia.toObject();
+
+        res.status(201).json({
+            ...obj,
+            url: obj.path,
+            cloudinaryUrl: obj.cloudUrl || null,
+        });
+    } catch (err) {
+        console.error('Erreur POST /media/:id/copy :', err);
+        res.status(500).json({ error: 'Erreur copie média' });
+    }
+});
+
 // GET /media/categories
 router.get('/categories', async (_req: Request, res: Response): Promise<void> => {
     try {
