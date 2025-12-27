@@ -3,12 +3,8 @@ services:
     name: mystictattoo-api
     env: node
     plan: free
-    buildCommand: npm install
-    startCommand: node index.js
+    buildCommand: npm install && npm run build
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: JWT_SECRET
-        value: tonSecretUltraFort
-      - key: ADMIN_PASSWORD
-        value: admin123
