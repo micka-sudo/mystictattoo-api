@@ -21,8 +21,9 @@ yarn-error.log*
 .idea/
 .DS_Store
 
-# 🧪 Dossiers de couverture de test
+# 🧪 Dossiers de couverture de test et temp
 coverage/
+tests/temp/
 
 # 📁 Build (si transpilation future ou React dans /client)
 dist/
