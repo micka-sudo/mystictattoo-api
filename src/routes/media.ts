@@ -417,13 +417,15 @@ router.get('/random', async (_req: Request, res: Response): Promise<void> => {
     try {
         console.log('[API] /media/random');
 
-        // Filtre uniquement sur la catégorie "Accueil" (images et vidéos)
+        // Filtre uniquement sur la catégorie "Accueil" avec cloudUrl valide
+        // (nécessaire car en production seules les images Cloudinary sont accessibles)
         const baseFilter = {
             category: 'Accueil',
+            cloudUrl: { $exists: true, $nin: [null, ''] },
         };
 
         const count = await Media.countDocuments(baseFilter);
-        console.log('[API] /media/random count (Accueil) =', count);
+        console.log('[API] /media/random count (Accueil avec cloudUrl) =', count);
 
         if (!count) {
             // Fallback: si aucun média dans Accueil, message informatif
