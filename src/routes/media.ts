@@ -136,11 +136,15 @@ router.post('/upload', verifyToken, upload.single('file'), async (req: FileReque
 });
 
 // GET /media
+// ?raw=true pour désactiver la déduplication (utilisé par le dashboard admin)
 router.get('/', async (req: Request, res: Response): Promise<void> => {
     const filter = req.query.style ? { category: req.query.style as string } : {};
+    const rawMode = req.query.raw === 'true';
 
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50));
+    // Limite plus haute pour le dashboard (raw mode)
+    const maxLimit = rawMode ? 2000 : 100;
+    const limit = Math.min(maxLimit, Math.max(1, parseInt(req.query.limit as string) || 50));
     const skip = (page - 1) * limit;
 
     try {
@@ -151,33 +155,38 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
             .skip(skip)
             .limit(limit);
 
-        console.log('Médias trouvés :', media.length, 'sur', total);
+        console.log('Médias trouvés :', media.length, 'sur', total, rawMode ? '(raw mode)' : '');
 
-        const seen = new Map<string, { doc: typeof media[0]; _score: number }>();
+        let finalMedia = media;
 
-        const scoreExt = (filename = ''): number => {
-            const f = filename.toLowerCase();
-            if (f.endsWith('.opt.webp')) return 3;
-            if (f.endsWith('.webp')) return 2;
-            if (/\.(jpg|jpeg|png|heic)$/i.test(f)) return 1;
-            if (f.endsWith('.mp4')) return 1;
-            return 0;
-        };
+        // Déduplication uniquement si pas en mode raw (pour la galerie publique)
+        if (!rawMode) {
+            const seen = new Map<string, { doc: typeof media[0]; _score: number }>();
 
-        for (const m of media) {
-            const filename = (m.filename || '').toLowerCase();
-            const base = filename.replace(/\.(opt\.webp|webp|jpg|jpeg|png|heic|mp4)$/i, '');
-            const currentScore = scoreExt(filename);
-            const existing = seen.get(base);
+            const scoreExt = (filename = ''): number => {
+                const f = filename.toLowerCase();
+                if (f.endsWith('.opt.webp')) return 3;
+                if (f.endsWith('.webp')) return 2;
+                if (/\.(jpg|jpeg|png|heic)$/i.test(f)) return 1;
+                if (f.endsWith('.mp4')) return 1;
+                return 0;
+            };
 
-            if (!existing || currentScore > existing._score) {
-                seen.set(base, { doc: m, _score: currentScore });
+            for (const m of media) {
+                const filename = (m.filename || '').toLowerCase();
+                const base = filename.replace(/\.(opt\.webp|webp|jpg|jpeg|png|heic|mp4)$/i, '');
+                const currentScore = scoreExt(filename);
+                const existing = seen.get(base);
+
+                if (!existing || currentScore > existing._score) {
+                    seen.set(base, { doc: m, _score: currentScore });
+                }
             }
+
+            finalMedia = Array.from(seen.values()).map(({ doc }) => doc);
         }
 
-        const filtered = Array.from(seen.values()).map(({ doc }) => doc);
-
-        const result = filtered.map((m) => {
+        const result = finalMedia.map((m) => {
             const obj = m.toObject();
             return {
                 ...obj,
