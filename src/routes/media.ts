@@ -396,9 +396,11 @@ router.get('/random', async (_req: Request, res: Response): Promise<void> => {
 });
 
 // POST /media/sync - Synchronise les assets Cloudinary vers MongoDB (protégé)
-router.post('/sync', verifyToken, async (_req: Request, res: Response): Promise<void> => {
+// ?force=true pour forcer la réimportation complète
+router.post('/sync', verifyToken, async (req: Request, res: Response): Promise<void> => {
     try {
-        console.log('[SYNC] Démarrage synchronisation Cloudinary -> MongoDB');
+        const forceMode = req.query.force === 'true';
+        console.log(`[SYNC] Démarrage synchronisation Cloudinary -> MongoDB (force=${forceMode})`);
 
         const results = {
             added: 0,
@@ -454,28 +456,18 @@ router.post('/sync', verifyToken, async (_req: Request, res: Response): Promise<
                 // Compter par catégorie
                 results.categories[category] = (results.categories[category] || 0) + 1;
 
-                // Vérifier si déjà en base par cloudUrl
-                const existingByUrl = await Media.findOne({ cloudUrl });
-                if (existingByUrl) {
-                    results.skipped++;
-                    continue;
+                // Vérifier si déjà en base par cloudUrl EXACT (sauf en mode force)
+                if (!forceMode) {
+                    const existingByUrl = await Media.findOne({ cloudUrl });
+                    if (existingByUrl) {
+                        results.skipped++;
+                        continue;
+                    }
                 }
 
-                // Vérifier par nom de fichier similaire
-                const existingByName = await Media.findOne({
-                    filename: { $regex: baseName, $options: 'i' },
-                });
-
-                if (existingByName) {
-                    // Mettre à jour cloudUrl si manquant
-                    if (!existingByName.cloudUrl) {
-                        existingByName.cloudUrl = cloudUrl;
-                        await existingByName.save();
-                        results.updated++;
-                    } else {
-                        results.skipped++;
-                    }
-                    continue;
+                // En mode force, supprimer l'existant et recréer
+                if (forceMode) {
+                    await Media.deleteMany({ cloudUrl });
                 }
 
                 // Créer nouveau média
