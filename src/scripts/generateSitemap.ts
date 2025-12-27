@@ -1,14 +1,19 @@
-// scripts/generateSitemap.js
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
-const uploadsPath = path.join(__dirname, '..', 'uploads');
-const publicPath = path.join(__dirname, '..', 'public');
+const uploadsPath = path.join(__dirname, '..', '..', 'uploads');
+const publicPath = path.join(__dirname, '..', '..', 'public');
 const outputPath = path.join(publicPath, 'sitemap.xml');
 
 const domain = 'https://www.mystic-tattoo.fr';
 
-const staticUrls = [
+interface SitemapUrl {
+    loc: string;
+    priority: string;
+    changefreq: string;
+}
+
+const staticUrls: SitemapUrl[] = [
     { loc: '/', priority: '1.0', changefreq: 'weekly' },
     { loc: '/gallery', priority: '0.9', changefreq: 'weekly' },
     { loc: '/flash', priority: '0.9', changefreq: 'weekly' },
@@ -16,8 +21,8 @@ const staticUrls = [
     { loc: '/reservation', priority: '0.8', changefreq: 'monthly' }
 ];
 
-function generateSitemap() {
-    let urls = [...staticUrls];
+function generateSitemap(): void {
+    const urls: SitemapUrl[] = [...staticUrls];
 
     try {
         const categories = fs.readdirSync(uploadsPath).filter(dir => {
@@ -33,7 +38,7 @@ function generateSitemap() {
             });
         });
     } catch (err) {
-        console.error('❌ Erreur lecture uploads/', err.message);
+        console.error('Erreur lecture uploads/', (err as Error).message);
     }
 
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -45,13 +50,18 @@ ${urls.map(u => `  <url>
   </url>`).join('\n')}
 </urlset>`;
 
+    // Créer le dossier public s'il n'existe pas
+    if (!fs.existsSync(publicPath)) {
+        fs.mkdirSync(publicPath, { recursive: true });
+    }
+
     fs.writeFileSync(outputPath, xml, 'utf8');
-    console.log(`✅ Sitemap généré : ${outputPath}`);
+    console.log(`Sitemap généré : ${outputPath}`);
 }
 
-// 👉 Appel direct si lancé depuis CLI
+// Appel direct si lancé depuis CLI
 if (require.main === module) {
     generateSitemap();
 }
 
-module.exports = generateSitemap;
+export default generateSitemap;
