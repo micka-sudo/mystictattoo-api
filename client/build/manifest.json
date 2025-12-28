@@ -1,0 +1,33 @@
+{
+  "short_name": "Mystic Tattoo",
+  "name": "Mystic Tattoo - Salon de tatouage Nancy",
+  "description": "Mystic Tattoo est un salon de tatouage incontournable a Nancy. Tatoueur passionne, galerie de tatouages, prise de rendez-vous en ligne.",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1a1a2e",
+  "background_color": "#1a1a2e",
+  "categories": ["lifestyle", "shopping"],
+  "lang": "fr-FR",
+  "dir": "ltr"
+}

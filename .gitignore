@@ -27,7 +27,8 @@ tests/temp/
 
 # 📁 Build (si transpilation future ou React dans /client)
 dist/
-build/
+/build/
+!client/build/
 
 # 📂 Dossier de fichiers uploadés (non versionnés)
 uploads/

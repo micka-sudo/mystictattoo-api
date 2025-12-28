@@ -1,0 +1,46 @@
+/* Fonts optimisées - WOFF2 prioritaire pour performance */
+
+@font-face {
+    font-family: 'Old London';
+    src: url('/fonts/OldLondon.woff2') format('woff2'),
+         url('/fonts/OldLondon.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Old London Alternate';
+    src: url('/fonts/OldLondonAlternate.woff2') format('woff2'),
+         url('/fonts/OldLondonAlternate.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'American Text';
+    src: url('/fonts/AmericanText.woff2') format('woff2'),
+         url('/fonts/AmericanText.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Heavy Metal Blight';
+    src: url('/fonts/HeavyMetalBlight.woff2') format('woff2'),
+         url('/fonts/HeavyMetalBlight.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Holocene';
+    src: url('/fonts/KGHolocene.woff2') format('woff2'),
+         url('/fonts/KGHolocene.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}

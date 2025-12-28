@@ -1,0 +1,5 @@
+User-agent: *
+Disallow:
+
+Sitemap: https://www.mystic-tattoo.fr/sitemap.xml
+Host: https://www.mystic-tattoo.fr
