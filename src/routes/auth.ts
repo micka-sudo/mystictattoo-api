@@ -3,16 +3,33 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import verifyToken from '../middlewares/auth';
+import verifyToken, { decodeAdminToken, JWT_ALGORITHM } from '../middlewares/auth';
 import { AuthenticatedRequest, AdminConfig } from '../types';
 
 const router = Router();
 const configPath = path.join(__dirname, '..', '..', 'config', 'admin.json');
 
 const JWT_EXPIRY = process.env.JWT_EXPIRY || '30m';
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 12;
+const BCRYPT_COST = 12;
+
+// Si défini (variable d'environnement Render), ce hash remplace celui de admin.json
+const envPasswordHash = (): string | null => process.env.ADMIN_PASSWORD_HASH || null;
+
+// iat est ajouté par jsonwebtoken, en secondes : ne pas le fournir soi-même
+const signAdminToken = (): string => jwt.sign(
+    { admin: true },
+    process.env.JWT_SECRET as string,
+    {
+        algorithm: JWT_ALGORITHM,
+        expiresIn: JWT_EXPIRY as jwt.SignOptions['expiresIn'],
+    }
+);
 
 const getPasswordHash = (): string | null => {
+    const fromEnv = envPasswordHash();
+    if (fromEnv) return fromEnv;
+
     try {
         const raw = fs.readFileSync(configPath, 'utf-8');
         const config: AdminConfig = JSON.parse(raw);
@@ -62,13 +79,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        const token = jwt.sign(
-            { admin: true, iat: Date.now() },
-            process.env.JWT_SECRET as string,
-            { expiresIn: JWT_EXPIRY as jwt.SignOptions['expiresIn'] }
-        );
-
-        res.json({ token });
+        res.json({ token: signAdminToken() });
     } catch (err) {
         console.error('Erreur login:', err);
         res.status(500).json({ error: 'Erreur serveur' });
@@ -85,15 +96,12 @@ router.post('/refresh-token', (req: Request, res: Response): void => {
             return;
         }
 
-        jwt.verify(token, process.env.JWT_SECRET as string);
+        if (!decodeAdminToken(token)) {
+            res.status(401).json({ error: 'Token expiré ou invalide' });
+            return;
+        }
 
-        const newToken = jwt.sign(
-            { admin: true, iat: Date.now() },
-            process.env.JWT_SECRET as string,
-            { expiresIn: JWT_EXPIRY as jwt.SignOptions['expiresIn'] }
-        );
-
-        res.json({ token: newToken });
+        res.json({ token: signAdminToken() });
     } catch {
         console.warn('Token invalide ou expiré');
         res.status(401).json({ error: 'Token expiré ou invalide' });
@@ -105,8 +113,15 @@ router.put('/change-password', verifyToken, async (req: AuthenticatedRequest, re
     try {
         const { currentPassword, newPassword } = req.body;
 
-        if (!currentPassword || !newPassword) {
+        if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' || !currentPassword || !newPassword) {
             res.status(400).json({ error: 'Mot de passe actuel et nouveau requis' });
+            return;
+        }
+
+        if (envPasswordHash()) {
+            res.status(409).json({
+                error: 'Le mot de passe est défini par la variable ADMIN_PASSWORD_HASH sur Render : modifiez-le là-bas.'
+            });
             return;
         }
 
@@ -129,7 +144,7 @@ router.put('/change-password', verifyToken, async (req: AuthenticatedRequest, re
             return;
         }
 
-        const newHash = await bcrypt.hash(newPassword, 10);
+        const newHash = await bcrypt.hash(newPassword, BCRYPT_COST);
         if (!savePasswordHash(newHash)) {
             res.status(500).json({ error: 'Erreur sauvegarde mot de passe' });
             return;

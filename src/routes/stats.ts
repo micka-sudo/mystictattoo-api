@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import crypto from 'crypto';
 import Visit from '../models/Visit';
 import verifyToken from '../middlewares/auth';
 
@@ -27,24 +28,46 @@ function detectBrowser(userAgent: string): string {
     return 'Autre';
 }
 
+/**
+ * Empreinte de l'IP : HMAC avec une clé serveur et le mois en cours.
+ * Permet de compter les visiteurs uniques du mois sans conserver l'IP,
+ * et sans pouvoir relier un visiteur d'un mois à l'autre.
+ */
+function pseudonymizeIp(ip: string): string {
+    const month = new Date().toISOString().slice(0, 7);
+    const key = process.env.STATS_IP_SALT || process.env.JWT_SECRET || 'mystic-tattoo-stats';
+    return crypto.createHmac('sha256', `${key}:${month}`).update(ip).digest('hex').slice(0, 32);
+}
+
+// Ne garde que l'origine du referer (pas de chemin ni de paramètres de suivi)
+function refererOrigin(referer: string): string {
+    try {
+        return referer ? new URL(referer).origin.slice(0, 200) : '';
+    } catch {
+        return '';
+    }
+}
+
+const clip = (value: unknown, max: number): string =>
+    typeof value === 'string' ? value.slice(0, max) : '';
+
 // POST /api/stats/visit - Enregistrer une visite (appelé depuis le frontend)
 router.post('/visit', async (req: Request, res: Response) => {
     try {
         const { page, sessionId } = req.body;
-        const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
-            || req.socket?.remoteAddress
-            || 'unknown';
-        const userAgent = req.headers['user-agent'] || '';
-        const referer = req.headers['referer'] || '';
+        // req.ip tient compte de 'trust proxy' (X-Forwarded-For non falsifiable par le client)
+        const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+        const userAgent = clip(req.headers['user-agent'], 512);
+        const referer = refererOrigin(clip(req.headers['referer'], 2048));
 
         const visit = new Visit({
-            page: page || '/',
-            ip,
+            page: clip(page, 200) || '/',
+            ip: pseudonymizeIp(ip),
             userAgent,
             referer,
             device: detectDevice(userAgent),
             browser: detectBrowser(userAgent),
-            sessionId: sessionId || '',
+            sessionId: clip(sessionId, 64),
         });
 
         await visit.save();

@@ -6,6 +6,10 @@ import { AuthenticatedRequest } from '../types';
 const router = Router();
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Longueurs maximales vérifiées AVANT la regex (évite un ReDoS sur un email géant)
+const MAX_EMAIL_LENGTH = 254;
+const MAX_NAME_LENGTH = 100;
+const MAX_MESSAGE_LENGTH = 2000;
 const VALID_STATUSES: ReservationStatus[] = ['en attente', 'acceptée', 'refusée', 'terminée'];
 
 // GET /reservation (admin uniquement)
@@ -24,8 +28,19 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     try {
         const { name, email, message, date } = req.body;
 
-        if (!name || !email || !date) {
+        if (typeof name !== 'string' || typeof email !== 'string' || !name.trim() || !email || !date) {
             res.status(400).json({ error: 'Champs requis manquants' });
+            return;
+        }
+
+        if (message !== undefined && typeof message !== 'string') {
+            res.status(400).json({ error: 'Message invalide' });
+            return;
+        }
+
+        if (email.length > MAX_EMAIL_LENGTH || name.length > MAX_NAME_LENGTH
+            || (message || '').length > MAX_MESSAGE_LENGTH) {
+            res.status(400).json({ error: 'Un des champs est trop long' });
             return;
         }
 
@@ -34,7 +49,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
             return;
         }
 
-        const reservationDate = new Date(date);
+        const reservationDate = new Date(String(date));
         if (isNaN(reservationDate.getTime())) {
             res.status(400).json({ error: 'Format de date invalide' });
             return;
