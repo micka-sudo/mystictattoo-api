@@ -11,10 +11,28 @@ import { AuthenticatedRequest, FileRequest } from '../types';
 const router = Router();
 const uploadsPath = path.join(__dirname, '..', '..', 'uploads');
 
+// Lettres (accents compris), chiffres, espaces, tirets, underscores, apostrophes
+const CATEGORY_REGEX = /^[\p{L}\p{N}][\p{L}\p{N} _'-]{0,49}$/u;
+
+const isValidCategory = (value: unknown): value is string =>
+    typeof value === 'string' && CATEGORY_REGEX.test(value);
+
+/**
+ * Dossier d'une catégorie dans uploads/, ou null si le nom sortirait du dossier
+ */
+const categoryDir = (category: string): string | null => {
+    const dir = path.resolve(uploadsPath, category);
+    return dir.startsWith(path.resolve(uploadsPath) + path.sep) ? dir : null;
+};
+
 const storage = multer.diskStorage({
     destination: (req, _file, cb) => {
         const category = req.body.category || 'uncategorized';
-        const dir = path.join(uploadsPath, category);
+        const dir = isValidCategory(category) ? categoryDir(category) : null;
+        if (!dir) {
+            cb(new Error('Catégorie invalide'), '');
+            return;
+        }
         fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
@@ -84,6 +102,12 @@ router.post('/upload', verifyToken, upload.single('file'), async (req: FileReque
     const fullPath = req.file.path;
     const category = req.body.category || 'uncategorized';
 
+    if (!isValidCategory(category)) {
+        fs.unlink(fullPath, () => undefined);
+        res.status(400).json({ error: 'Catégorie invalide' });
+        return;
+    }
+
     try {
         let finalFilename = req.file.filename;
         let fileUrl = `/uploads/${category}/${finalFilename}`;
@@ -138,7 +162,8 @@ router.post('/upload', verifyToken, upload.single('file'), async (req: FileReque
 // GET /media
 // ?raw=true pour désactiver la déduplication (utilisé par le dashboard admin)
 router.get('/', async (req: Request, res: Response): Promise<void> => {
-    const filter = req.query.style ? { category: req.query.style as string } : {};
+    const style = typeof req.query.style === 'string' ? req.query.style : '';
+    const filter = style ? { category: style } : {};
     const rawMode = req.query.raw === 'true';
 
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -244,8 +269,9 @@ router.delete('/:id', verifyToken, async (req: AuthenticatedRequest, res: Respon
         }
 
         try {
-            const filePath = path.join(uploadsPath, doc.category || '', doc.filename || '');
-            if (fs.existsSync(filePath)) {
+            const dir = categoryDir(doc.category || '');
+            const filePath = dir ? path.join(dir, path.basename(doc.filename || '')) : null;
+            if (filePath && fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
                 console.log('Fichier local supprimé :', filePath);
             }
@@ -267,8 +293,8 @@ router.put('/:id/move', verifyToken, async (req: AuthenticatedRequest, res: Resp
     const { id } = req.params;
     const { newCategory } = req.body;
 
-    if (!newCategory) {
-        res.status(400).json({ error: 'newCategory requis' });
+    if (!isValidCategory(newCategory)) {
+        res.status(400).json({ error: 'newCategory invalide' });
         return;
     }
 
@@ -283,11 +309,12 @@ router.put('/:id/move', verifyToken, async (req: AuthenticatedRequest, res: Resp
         const filename = doc.filename || '';
 
         try {
-            const oldPath = path.join(uploadsPath, oldCategory, filename);
-            const newDir = path.join(uploadsPath, newCategory);
-            const newPath = path.join(newDir, filename);
+            const oldDir = categoryDir(oldCategory);
+            const newDir = categoryDir(newCategory);
+            const oldPath = oldDir ? path.join(oldDir, path.basename(filename)) : null;
+            const newPath = newDir ? path.join(newDir, path.basename(filename)) : null;
 
-            if (fs.existsSync(oldPath)) {
+            if (oldPath && newDir && newPath && fs.existsSync(oldPath)) {
                 fs.mkdirSync(newDir, { recursive: true });
                 fs.renameSync(oldPath, newPath);
                 console.log('Fichier déplacé :', oldPath, '->', newPath);
@@ -318,8 +345,8 @@ router.post('/:id/copy', verifyToken, async (req: AuthenticatedRequest, res: Res
     const { id } = req.params;
     const { targetCategory } = req.body;
 
-    if (!targetCategory) {
-        res.status(400).json({ error: 'targetCategory requis' });
+    if (!isValidCategory(targetCategory)) {
+        res.status(400).json({ error: 'targetCategory invalide' });
         return;
     }
 
@@ -346,11 +373,12 @@ router.post('/:id/copy', verifyToken, async (req: AuthenticatedRequest, res: Res
 
         // Copier le fichier local si existe
         try {
-            const oldPath = path.join(uploadsPath, original.category || 'uncategorized', original.filename || '');
-            const newDir = path.join(uploadsPath, targetCategory);
-            const newPath = path.join(newDir, newFilename);
+            const oldDir = categoryDir(original.category || 'uncategorized');
+            const newDir = categoryDir(targetCategory);
+            const oldPath = oldDir ? path.join(oldDir, path.basename(original.filename || '')) : null;
+            const newPath = newDir ? path.join(newDir, path.basename(newFilename)) : null;
 
-            if (fs.existsSync(oldPath)) {
+            if (oldPath && newDir && newPath && fs.existsSync(oldPath)) {
                 fs.mkdirSync(newDir, { recursive: true });
                 fs.copyFileSync(oldPath, newPath);
                 console.log('Fichier copié :', oldPath, '->', newPath);

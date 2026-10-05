@@ -59,7 +59,7 @@
     "mongodb": "^6.17.0",
     "mongoose": "^8.17.1",
     "morgan": "^1.10.1",
-    "multer": "^1.4.5-lts.1",
+    "multer": "^2.4.0",
     "multer-storage-cloudinary": "^2.2.1",
     "sharp": "^0.34.3",
     "swagger-jsdoc": "^6.2.8",

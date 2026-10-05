@@ -23,6 +23,14 @@ const frontendPath = path.join(__dirname, '..', 'client', 'build');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Render place l'API derrière un proxy : req.ip doit être l'IP du visiteur
+// (sinon le rate limiting compte tous les visiteurs ensemble)
+app.set('trust proxy', 1);
+
+// Parseur de query simple : ?style[$ne]=x n'est pas transformé en objet (injection d'opérateurs MongoDB)
+app.set('query parser', 'simple');
 
 // Sentry
 if (process.env.SENTRY_DSN) {
@@ -51,7 +59,7 @@ const globalLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false
 });
-app.use(globalLimiter);
+app.use('/api', globalLimiter);
 
 // Rate Limiting login
 const loginLimiter = rateLimit({
@@ -78,9 +86,9 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 // Logging middleware
 app.use(logger.middleware());
 
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing (les fichiers passent par multer, pas par ces parseurs)
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 
 // MongoDB
 mongoose.connect(process.env.MONGO_URI as string)
@@ -93,14 +101,34 @@ if (!fs.existsSync(uploadsPath)) {
 }
 app.use('/uploads', express.static(uploadsPath));
 
-// Swagger
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'Mystic Tattoo API'
-}));
+// Swagger (hors production uniquement)
+if (!isProduction) {
+    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+        customCss: '.swagger-ui .topbar { display: none }',
+        customSiteTitle: 'Mystic Tattoo API'
+    }));
+}
 
 // API Routes
 app.use('/api', routes);
+
+// Health check endpoint
+app.get('/health', (_req: Request, res: Response) => {
+    const mongoState = mongoose.connection.readyState;
+    const mongoStatus = mongoState === 1 ? 'connected' : mongoState === 2 ? 'connecting' : 'disconnected';
+
+    res.json({
+        status: mongoState === 1 ? 'healthy' : 'degraded',
+        timestamp: new Date().toISOString(),
+        uptime: Math.floor(process.uptime()),
+        mongodb: mongoStatus
+    });
+});
+
+// Legacy ping route
+app.get('/ping', (_req: Request, res: Response) => {
+    res.send('Backend Mystic Tattoo opérationnel');
+});
 
 // SEO Routes
 app.use('/', sitemapRoute);
@@ -116,26 +144,6 @@ if (fs.existsSync(frontendPath)) {
     logger.warn('Frontend non trouvé dans /client/build');
 }
 
-// Health check endpoint
-app.get('/health', (_req: Request, res: Response) => {
-    const mongoState = mongoose.connection.readyState;
-    const mongoStatus = mongoState === 1 ? 'connected' : mongoState === 2 ? 'connecting' : 'disconnected';
-
-    res.json({
-        status: mongoState === 1 ? 'healthy' : 'degraded',
-        timestamp: new Date().toISOString(),
-        uptime: Math.floor(process.uptime()),
-        mongodb: mongoStatus,
-        version: process.env.npm_package_version || '1.2.1',
-        env: process.env.NODE_ENV || 'development'
-    });
-});
-
-// Legacy ping route
-app.get('/ping', (_req: Request, res: Response) => {
-    res.send('Backend Mystic Tattoo opérationnel');
-});
-
 // Error handler
 interface HttpError extends Error {
     status?: number;
@@ -146,7 +154,9 @@ app.use((err: HttpError, req: Request, res: Response, _next: NextFunction) => {
         Sentry.captureException(err);
     }
     logger.apiError(req, err);
-    res.status(err.status || 500).json({ error: err.message || 'Erreur serveur interne' });
+    const status = err.status || 500;
+    // Le détail des erreurs internes reste dans les logs, pas dans la réponse
+    res.status(status).json({ error: status < 500 && err.message ? err.message : 'Erreur serveur interne' });
 });
 
 // Start server

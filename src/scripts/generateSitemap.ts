@@ -21,6 +21,13 @@ const staticUrls: SitemapUrl[] = [
     { loc: '/reservation', priority: '0.8', changefreq: 'monthly' }
 ];
 
+const escapeXml = (value: string): string => value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
 function generateSitemap(): void {
     const urls: SitemapUrl[] = [...staticUrls];
 
@@ -32,7 +39,7 @@ function generateSitemap(): void {
 
         categories.forEach(style => {
             urls.push({
-                loc: `/gallery/${style}`,
+                loc: `/gallery/${encodeURIComponent(style)}`,
                 priority: '0.8',
                 changefreq: 'monthly'
             });
@@ -44,7 +51,7 @@ function generateSitemap(): void {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url>
-    <loc>${domain}${u.loc}</loc>
+    <loc>${escapeXml(domain + u.loc)}</loc>
     <priority>${u.priority}</priority>
     <changefreq>${u.changefreq}</changefreq>
   </url>`).join('\n')}

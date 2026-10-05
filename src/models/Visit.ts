@@ -20,18 +20,24 @@ const visitSchema = new Schema<IVisitDocument>(
             type: String,
             required: true,
             trim: true,
+            maxlength: 200,
         },
+        // Empreinte pseudonymisée de l'IP (jamais l'IP en clair)
         ip: {
             type: String,
             required: true,
+            maxlength: 64,
         },
         userAgent: {
             type: String,
             default: '',
+            maxlength: 512,
         },
+        // Origine seule (ex : https://www.google.com), sans chemin ni paramètres
         referer: {
             type: String,
             default: '',
+            maxlength: 200,
         },
         country: {
             type: String,
@@ -53,12 +59,17 @@ const visitSchema = new Schema<IVisitDocument>(
         sessionId: {
             type: String,
             default: '',
+            maxlength: 64,
         },
     },
     {
         timestamps: { createdAt: true, updatedAt: false },
     }
 );
+
+// Durée de conservation : les visites sont supprimées automatiquement après 13 mois
+export const VISIT_RETENTION_SECONDS = 395 * 24 * 60 * 60;
+visitSchema.index({ createdAt: 1 }, { expireAfterSeconds: VISIT_RETENTION_SECONDS });
 
 // Index pour optimiser les requêtes d'analytics
 visitSchema.index({ createdAt: -1 });

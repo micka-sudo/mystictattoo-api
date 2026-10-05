@@ -4,7 +4,7 @@ import fsSync from 'fs';
 import path from 'path';
 import multer from 'multer';
 import sharp from 'sharp';
-import verifyToken from '../middlewares/auth';
+import verifyToken, { isAdminRequest } from '../middlewares/auth';
 import News from '../models/News';
 import { AuthenticatedRequest, FileRequest } from '../types';
 
@@ -71,8 +71,9 @@ const convertToOptimizedJpeg = async (filePath: string): Promise<void> => {
 // GET /news
 router.get('/', async (req: Request, res: Response): Promise<void> => {
     try {
+        // Les actus masquées ne sont listées que pour l'admin connecté
         const filter: { isVisible?: boolean } = {};
-        if (req.query.visible === 'true') {
+        if (req.query.visible === 'true' || !isAdminRequest(req)) {
             filter.isVisible = true;
         }
 

@@ -40,7 +40,7 @@ npm run test	Lance les tests unitaires (si présents)
 
 PORT=5000
 MONGO_URI=mongodb+srv://<user>:<mdp>@cluster.mongodb.net/mystictattoo
-JWT_SECRET=une_clé_ultra_secrète
+JWT_SECRET=remplacez_par_une_valeur_longue_et_aleatoire
 UPLOAD_DIR=uploads
 
 Méthode | Route | Description

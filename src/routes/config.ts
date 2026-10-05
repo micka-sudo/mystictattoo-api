@@ -11,7 +11,8 @@ const configPath = path.join(__dirname, '..', '..', 'config', 'admin.json');
 router.get('/', verifyToken, (req: AuthenticatedRequest, res: Response): void => {
     try {
         const config: AdminConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        res.json(config);
+        // Le hash du mot de passe ne sort jamais de l'API
+        res.json({ showNewsOnHome: Boolean(config.showNewsOnHome) });
     } catch (err) {
         console.error('Erreur lecture admin.json :', err);
         res.status(500).json({ error: 'Erreur lecture configuration' });
@@ -21,7 +22,20 @@ router.get('/', verifyToken, (req: AuthenticatedRequest, res: Response): void =>
 // POST /api/config
 router.post('/', verifyToken, (req: AuthenticatedRequest, res: Response): void => {
     try {
-        fs.writeFileSync(configPath, JSON.stringify(req.body, null, 2));
+        if (typeof req.body?.showNewsOnHome !== 'boolean') {
+            res.status(400).json({ error: 'showNewsOnHome (booléen) requis' });
+            return;
+        }
+
+        // Seul showNewsOnHome est modifiable : le reste du fichier (dont le hash) est conservé
+        let current: Partial<AdminConfig> = {};
+        try {
+            current = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        } catch {
+            // Fichier absent : il sera créé
+        }
+        const updated = { ...current, showNewsOnHome: req.body.showNewsOnHome };
+        fs.writeFileSync(configPath, JSON.stringify(updated, null, 2));
         res.json({ message: 'Configuration mise à jour' });
     } catch (err) {
         console.error('Erreur écriture admin.json :', err);
