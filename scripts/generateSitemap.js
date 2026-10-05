@@ -6,7 +6,6 @@ const BASE_URL = 'https://www.mystic-tattoo.fr';
 const staticRoutes = [
     '/',
     '/gallery',
-    '/flash',
     '/contact',
     '/mentions-legales'
 ];

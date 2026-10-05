@@ -16,7 +16,7 @@ interface SitemapUrl {
 const staticUrls: SitemapUrl[] = [
     { loc: '/', priority: '1.0', changefreq: 'weekly' },
     { loc: '/gallery', priority: '0.9', changefreq: 'weekly' },
-    { loc: '/flash', priority: '0.9', changefreq: 'weekly' },
+    // '/flash' retiré : page Flash désactivée côté frontend (redirigée vers /gallery)
     { loc: '/contact', priority: '0.7', changefreq: 'yearly' },
     { loc: '/reservation', priority: '0.8', changefreq: 'monthly' }
 ];
