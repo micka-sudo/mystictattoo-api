@@ -26,8 +26,25 @@ const PORT = process.env.PORT || 4000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Render place l'API derrière un proxy : req.ip doit être l'IP du visiteur
-// (sinon le rate limiting compte tous les visiteurs ensemble)
-app.set('trust proxy', 1);
+// (sinon le rate limiting compte tous les visiteurs ensemble).
+// TRUST_PROXY = nombre de proxys entre le visiteur et l'API (1 par défaut).
+const trustProxyHops = Number.parseInt(process.env.TRUST_PROXY || '1', 10);
+app.set('trust proxy', Number.isNaN(trustProxyHops) ? 1 : trustProxyHops);
+
+// Diagnostic unique : nombre d'adresses dans X-Forwarded-For (sans les adresses elles-mêmes).
+// Avec un seul proxy (Render), on attend 1 adresse ; davantage = ajuster TRUST_PROXY.
+let proxyDiagnosticDone = false;
+app.use((req: Request, _res: Response, next: NextFunction) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (!proxyDiagnosticDone && typeof forwarded === 'string') {
+        proxyDiagnosticDone = true;
+        logger.info('Diagnostic proxy', {
+            adressesXForwardedFor: forwarded.split(',').length,
+            trustProxy: app.get('trust proxy'),
+        });
+    }
+    next();
+});
 
 // Parseur de query simple : ?style[$ne]=x n'est pas transformé en objet (injection d'opérateurs MongoDB)
 app.set('query parser', 'simple');
@@ -51,6 +68,18 @@ app.use(helmet({
     contentSecurityPolicy: false
 }));
 
+// CORS (avant les limiteurs : les réponses 429 gardent leurs en-têtes CORS)
+const defaultOrigins = [
+    'http://localhost:3000',
+    'https://mystictattoo-chat.vercel.app',
+    'https://www.mystic-tattoo.fr'
+];
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    : defaultOrigins;
+
+app.use(cors({ origin: allowedOrigins, credentials: true }));
+
 // Rate Limiting global
 const globalLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -67,21 +96,31 @@ const loginLimiter = rateLimit({
     max: 5,
     message: { error: 'Trop de tentatives de connexion, réessayez dans 15 minutes' },
     standardHeaders: true,
-    legacyHeaders: false
+    legacyHeaders: false,
+    // Seuls les échecs comptent : un rafraîchissement de session réussi ne bloque pas l'admin
+    skipSuccessfulRequests: true
 });
 app.use('/api/login', loginLimiter);
 
-// CORS
-const defaultOrigins = [
-    'http://localhost:3000',
-    'https://mystictattoo-chat.vercel.app',
-    'https://www.mystic-tattoo.fr'
-];
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
-    : defaultOrigins;
+// Formulaires publics : nombre d'enregistrements limité par visiteur
+const visitLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 20,
+    message: { error: 'Trop de requêtes' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+app.use('/api/stats/visit', visitLimiter);
 
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+const reservationLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    message: { error: 'Trop de demandes de réservation, réessayez dans une heure' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method !== 'POST'
+});
+app.use('/api/reservations', reservationLimiter);
 
 // Logging middleware
 app.use(logger.middleware());
