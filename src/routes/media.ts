@@ -118,6 +118,10 @@ router.post('/upload', verifyToken, upload.single('file'), async (req: FileReque
             const optimizedPath = await convertToWebP(fullPath);
             const optimizedName = path.basename(optimizedPath);
 
+            // L'original garde ses métadonnées EXIF (GPS, appareil) : seule la
+            // version WebP, sans métadonnées, est conservée
+            fs.unlink(fullPath, () => undefined);
+
             finalFilename = optimizedName;
             fileUrl = `/uploads/${category}/${optimizedName}`;
 
@@ -155,6 +159,8 @@ router.post('/upload', verifyToken, upload.single('file'), async (req: FileReque
         });
     } catch (err) {
         console.error('Erreur traitement fichier :', err);
+        // Fichier illisible ou erreur BDD : ne pas laisser le fichier brut servi par /uploads
+        fs.unlink(fullPath, () => undefined);
         res.status(500).json({ error: 'Erreur upload ou BDD' });
     }
 });

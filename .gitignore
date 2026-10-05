@@ -45,3 +45,6 @@ scripts/*
 TODO.md
 TODO-*.md
 DEPLOY-WORKFLOW.md
+
+# 🪵 Logs applicatifs locaux
+logs/
